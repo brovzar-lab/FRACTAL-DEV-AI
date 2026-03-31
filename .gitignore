@@ -1,0 +1,34 @@
+# Environment & secrets
+.env
+credentials.json
+token.json
+
+# Dependencies
+node_modules/
+
+# Intermediate / temporary files (always regenerated)
+.tmp/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+env/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Config audit backups
+.config-audit-backups/

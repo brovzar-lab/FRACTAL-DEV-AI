@@ -1,0 +1,15 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Fractal-AI screenplays — allow read/write for now (no auth yet)
+    match /fractal-screenplays/{docId} {
+      allow read, write: if true;
+    }
+    
+    // Existing rules for other collections pass through
+    match /{document=**} {
+      allow read, write: if request.auth != null;
+    }
+  }
+}
