@@ -340,6 +340,24 @@ const useScriptStore = create(
         } : s.screenplay
       }))
     },
+
+    // Append a message to the guide thread (auto-saved to Firestore via subscription)
+    appendGuideMessage: (message) => {
+      set(s => ({
+        screenplay: s.screenplay
+          ? { ...s.screenplay, guideThread: [...(s.screenplay.guideThread || []), message] }
+          : s.screenplay
+      }))
+    },
+
+    // Clear the guide thread (e.g., on project close)
+    clearGuideThread: () => {
+      set(s => ({
+        screenplay: s.screenplay
+          ? { ...s.screenplay, guideThread: [] }
+          : s.screenplay
+      }))
+    },
   })
 )
 
@@ -352,6 +370,7 @@ function enrichScreenplay(screenplay) {
   if (sp.methodology == null) sp.methodology = null           // string | null — chosen lens id e.g. 'story-grid'
   if (sp.snapshot == null) sp.snapshot = null                 // object | null — full-script snapshot from generateFullSnapshot()
   if (sp.snapshotGeneratedAt == null) sp.snapshotGeneratedAt = null  // ISO string | null — timestamp of last snapshot
+  if (sp.guideThread == null) sp.guideThread = []             // array — conversation thread for AI Guide panel
 
   for (const act of sp.acts) {
     for (const seq of (act.sequences || [])) {
@@ -402,6 +421,7 @@ function useScreenplayStore(selector) {
     sceneDrawerId: ui.sceneDrawerId,
     sceneDrawerDirection: ui.sceneDrawerDirection,
     wizardStep: ui.wizardStep,
+    guideMode: ui.guideMode,
 
     // -- Script state --
     screenplay: script.screenplay,
@@ -479,6 +499,7 @@ function useScreenplayStore(selector) {
     closeSceneDrawer: ui.closeSceneDrawer,
     setSceneDrawerDirection: ui.setSceneDrawerDirection,
     setWizardStep: ui.setWizardStep,
+    setGuideMode: ui.setGuideMode,
 
     // -- Actions (zoom) — wrappers that pass screenplay for path calculation --
     drillInto: (type, id) => ui.drillInto(type, id, script.screenplay),
@@ -510,6 +531,8 @@ function useScreenplayStore(selector) {
     // -- Actions (script — AI guide) --
     setMethodology: script.setMethodology,
     saveSnapshot: script.saveSnapshot,
+    appendGuideMessage: script.appendGuideMessage,
+    clearGuideThread: script.clearGuideThread,
 
     // -- Actions (Epps) --
     createPass: script.createPass,
@@ -571,6 +594,7 @@ useScreenplayStore.getState = () => {
     snapshotCache: analysis.snapshotCache,
     snapshotStale: analysis.snapshotStale,
     wizardStep: ui.wizardStep,
+    guideMode: ui.guideMode,
 
     // Actions (same as hook version)
     closeProject: () => {
@@ -630,6 +654,7 @@ useScreenplayStore.getState = () => {
     closeSceneDrawer: () => useUIStore.getState().closeSceneDrawer(),
     setSceneDrawerDirection: (d) => useUIStore.getState().setSceneDrawerDirection(d),
     setWizardStep: (step) => useUIStore.getState().setWizardStep(step),
+    setGuideMode: (mode) => useUIStore.getState().setGuideMode(mode),
     drillInto: (type, id) => useUIStore.getState().drillInto(type, id, useScriptStore.getState().screenplay),
     drillOut: (z) => useUIStore.getState().drillOut(z),
     goToUnit: (type, id) => useUIStore.getState().goToUnit(type, id, useScriptStore.getState().screenplay),
@@ -655,6 +680,8 @@ useScreenplayStore.getState = () => {
     reorderTasks: (t) => useScriptStore.getState().reorderTasks(t),
     setMethodology: (id) => useScriptStore.getState().setMethodology(id),
     saveSnapshot: (data) => useScriptStore.getState().saveSnapshot(data),
+    appendGuideMessage: (msg) => useScriptStore.getState().appendGuideMessage(msg),
+    clearGuideThread: () => useScriptStore.getState().clearGuideThread(),
     createPass: (t) => useScriptStore.getState().createPass(t),
     activatePass: (id) => useScriptStore.getState().activatePass(id),
     completePass: (id, s) => useScriptStore.getState().completePass(id, s),

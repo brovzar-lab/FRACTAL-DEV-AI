@@ -168,6 +168,13 @@ const useUIStore = create(
         set({ zoom: targetZoom, zoomPath: newPath, activeUnitId: id })
       },
 
+      // AI Guide mode
+      // 'director' = options + action, no methodology explanation (default for pros)
+      // 'coach'    = options + methodology context
+      // 'fast'     = immediate rewrite, minimal framing
+      guideMode: 'director',
+      setGuideMode: (mode) => set({ guideMode: mode }),
+
       // Reset all UI state
       resetUI: () => set({
         zoom: ZOOM_LEVELS.FULL_SCRIPT,
@@ -187,6 +194,7 @@ const useUIStore = create(
         viewType: s.viewType,
         colorMode: s.colorMode,
         sceneDrawerDirection: s.sceneDrawerDirection,
+        guideMode: s.guideMode,
       })
     }
   )
