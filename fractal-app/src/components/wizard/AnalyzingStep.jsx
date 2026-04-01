@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import useUIStore from '../../store/uiStore'
 import useScreenplayStore from '../../store/screenplayStore'
 import useAnalysisStore from '../../store/analysisStore'
@@ -19,6 +19,8 @@ export default function AnalyzingStep() {
   const saveSnapshot = useScreenplayStore(s => s.saveSnapshot)
   const setSnapshot = useAnalysisStore(s => s.setSnapshot)
 
+  const tickerRef = useRef(null)
+
   const [phase, setPhase] = useState(0)     // current phase index (0-4)
   const [done, setDone] = useState(false)
   const [error, setError] = useState(null)
@@ -34,7 +36,7 @@ export default function AnalyzingStep() {
         // Advance through visual phases every ~3s while the real call runs in parallel.
         // The phase ticker is cosmetic — it shows progress even though we have one API call.
         let tick = 0
-        const ticker = setInterval(() => {
+        tickerRef.current = setInterval(() => {
           if (cancelled) return
           tick++
           if (tick < PHASES.length) setPhase(tick)
@@ -43,7 +45,7 @@ export default function AnalyzingStep() {
         const methodology = screenplay.methodology || 'story-grid'
         const snapshot = await generateFullSnapshot(screenplay, methodology)
 
-        clearInterval(ticker)
+        clearInterval(tickerRef.current)
         if (cancelled) return
 
         setPhase(PHASES.length - 1) // show all phases as complete
@@ -66,8 +68,11 @@ export default function AnalyzingStep() {
     }
 
     run()
-    return () => { cancelled = true }
-  }, [retryCount]) // re-run when retryCount changes (retry support)
+    return () => {
+      cancelled = true
+      clearInterval(tickerRef.current)
+    }
+  }, [retryCount, screenplay]) // re-run when retryCount changes (retry support)
 
   // Error state
   if (error) {
