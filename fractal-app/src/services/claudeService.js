@@ -15,6 +15,8 @@ const USE_MOCK = !PROXY_URL
 // PARSE SCREENPLAY → STRUCTURED JSON TREE
 // ============================================================
 export async function parseScreenplayWithClaude(rawText, pageCount, title = 'Untitled') {
+  const textLimit = 200000  // 200K chars
+
   const prompt = `You are a professional screenplay analyst. Parse this screenplay into a structured JSON tree.
 
 Return ONLY valid JSON with this exact shape:
@@ -51,7 +53,7 @@ Return ONLY valid JSON with this exact shape:
                 "valueShift": true,
                 "notes": "Optional diagnostic note if warn or fail"
               },
-              "text": "Full scene text",
+              "text": "",
               "notes": [],
               "tasks": [],
               "beats": [],
@@ -67,17 +69,19 @@ Return ONLY valid JSON with this exact shape:
 Rules:
 - Detect 3, 4, or 5 acts based on the screenplay's actual structure
 - Group scenes into sequences of 3-8 scenes each around a narrative question
+- CRITICAL: Include ALL acts, ALL sequences, ALL scenes from page 1 to page ${pageCount}. Do NOT stop early or truncate.
 - For each scene, assess if Beginning (B), Middle (M), Obstacle (O), Climax (C) are present
 - Identify the dramatic question (binary yes/no) for each scene
 - For status: pass = all BMOC present + value shift, warn = 1-2 elements weak, fail = multiple missing
-- Keep scene text complete and accurate
+- IMPORTANT: Set "text" to "" (empty string) for EVERY scene. The text will be filled in automatically from the source.
 - For genre, identify the primary Story Grid genre (Action-Adventure, Love Story, Crime, Horror, etc.)
+- Scene IDs should be sequential: sc-001, sc-002, etc.
+- Keep synopsis short (1-2 sentences max)
 
 SCREENPLAY (${pageCount} pages):
-${rawText.slice(0, 60000)}`
+${rawText.slice(0, textLimit)}`
 
   if (USE_MOCK) {
-    // Return demo data in development
     await delay(2000)
     return getMockScreenplay(title, pageCount)
   }
@@ -94,7 +98,7 @@ ${rawText.slice(0, 60000)}`
       body: JSON.stringify({
         message: prompt,
         model: 'claude-sonnet-4-20250514',
-        max_tokens: 8000
+        max_tokens: 32000
       })
     })
 
@@ -104,9 +108,23 @@ ${rawText.slice(0, 60000)}`
     }
 
     const data = await response.json()
-    // Claude sometimes wraps JSON in ```json blocks
-    const cleaned = data.content.replace(/```json\n?|\n?```/g, '').trim()
-    return JSON.parse(cleaned)
+    let cleaned = data.content.replace(/```json\n?|\n?```/g, '').trim()
+
+    // Attempt JSON repair if truncated (unfinished arrays/objects)
+    let screenplay
+    try {
+      screenplay = JSON.parse(cleaned)
+    } catch (parseErr) {
+      console.warn('[Parse] JSON truncated, attempting repair…', parseErr.message)
+      screenplay = repairTruncatedJSON(cleaned)
+    }
+
+    // Always backfill scene text from raw source
+    backfillSceneText(screenplay, rawText)
+
+    const totalScenes = screenplay.acts.reduce((n, a) => n + a.sequences.reduce((m, s) => m + s.scenes.length, 0), 0)
+    console.log(`[Parse] Parsed "${screenplay.title}" — ${screenplay.acts.length} acts, ${totalScenes} scenes`)
+    return screenplay
   } catch (e) {
     if (e.name === 'AbortError') throw new Error('Request timed out — screenplay may be too large. Try a shorter script.')
     throw e
@@ -114,6 +132,77 @@ ${rawText.slice(0, 60000)}`
     clearTimeout(timeout)
   }
 }
+
+/**
+ * Attempt to repair truncated JSON from Claude.
+ * Closes unclosed strings, arrays, and objects.
+ */
+function repairTruncatedJSON(str) {
+  // Remove trailing incomplete key-value pairs
+  str = str.replace(/,\s*"[^"]*"?\s*:?\s*$/, '')
+  // Remove trailing incomplete strings
+  str = str.replace(/,?\s*"[^"]*$/, '')
+
+  // Count open/close brackets
+  let opens = 0, closesNeeded = []
+  for (const ch of str) {
+    if (ch === '{') { opens++; closesNeeded.push('}') }
+    else if (ch === '[') { opens++; closesNeeded.push(']') }
+    else if (ch === '}' || ch === ']') { opens--; closesNeeded.pop() }
+  }
+
+  // Close any remaining open brackets
+  while (closesNeeded.length > 0) {
+    str += closesNeeded.pop()
+  }
+
+  try {
+    return JSON.parse(str)
+  } catch (e) {
+    throw new Error(`Could not repair truncated JSON: ${e.message}. The screenplay may be too complex — try uploading as .fountain or .txt format.`)
+  }
+}
+
+/**
+ * Backfill scene text from raw screenplay text.
+ * Matches scene headings to find full text between headings in the raw source.
+ */
+function backfillSceneText(screenplay, rawText) {
+  // Remove page markers to get clean text
+  const cleanText = rawText.replace(/--- PAGE \d+ ---\n?/g, '')
+  const allScenes = screenplay.acts.flatMap(a => a.sequences.flatMap(s => s.scenes))
+
+  // Find all scene heading positions in the raw text
+  const headingPattern = /^(INT\.|EXT\.|INT\/EXT\.|I\/E\.)\s*.+$/gim
+  const headingPositions = []
+  let match
+  while ((match = headingPattern.exec(cleanText)) !== null) {
+    headingPositions.push({ pos: match.index, heading: match[0].trim() })
+  }
+
+  // Match each parsed scene to its raw text block
+  for (let i = 0; i < allScenes.length; i++) {
+    const scene = allScenes[i]
+    const sceneHeading = scene.heading.toUpperCase().trim()
+
+    // Find the best matching heading in the raw text
+    const matchIdx = headingPositions.findIndex(h =>
+      h.heading.toUpperCase().includes(sceneHeading.slice(0, 30)) ||
+      sceneHeading.includes(h.heading.toUpperCase().slice(0, 30))
+    )
+
+    if (matchIdx >= 0) {
+      const start = headingPositions[matchIdx].pos
+      const end = matchIdx + 1 < headingPositions.length
+        ? headingPositions[matchIdx + 1].pos
+        : cleanText.length
+      scene.text = cleanText.slice(start, end).trim()
+      // Remove matched heading so we don't double-match
+      headingPositions.splice(matchIdx, 1)
+    }
+  }
+}
+
 
 // ============================================================
 // ACT-LEVEL ANALYSIS

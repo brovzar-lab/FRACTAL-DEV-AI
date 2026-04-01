@@ -959,3 +959,16 @@ input:focus, textarea:focus, select:focus {
     font-size: 1.5rem;
   }
 }
+
+/* === Phase 3: Intelligence utilities === */
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+.spin { animation: spin 1s linear infinite; }
+
+.btn-hover:hover {
+  background: var(--bg-surface-2) !important;
+  border-color: var(--border-default) !important;
+}

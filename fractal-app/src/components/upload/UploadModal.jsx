@@ -7,7 +7,7 @@ import { parseScreenplayWithClaude } from '../../services/claudeService'
 const ACCEPTED = '.pdf,.fdx,.fountain,.txt'
 const STAGES = ['Uploading file…', 'Extracting text…', 'AI parsing structure…', 'Building fractal tree…']
 
-export default function UploadModal({ onClose }) {
+export default function UploadModal({ onClose, replaceMode = false }) {
   const [dragOver, setDragOver] = useState(false)
   const [file, setFile] = useState(null)
   const [stage, setStage] = useState(-1)  // -1 = idle, 0-3 = processing, 4 = done
@@ -45,6 +45,11 @@ export default function UploadModal({ onClose }) {
       setStage(4)
       await delay(600)
 
+      if (replaceMode) {
+        // Replace screenplay data in current project, keep project ID
+        const currentId = useScreenplayStore.getState().screenplay?.id
+        if (currentId) screenplay.id = currentId
+      }
       setScreenplay(screenplay)
       onClose()
     } catch (e) {
@@ -78,7 +83,7 @@ export default function UploadModal({ onClose }) {
         }}>
           <div>
             <h2 style={{ fontFamily: 'var(--font-editorial)', fontSize: '1.1rem', fontWeight: 600 }}>
-              Upload Screenplay
+              {replaceMode ? 'Replace Screenplay' : 'Upload Screenplay'}
             </h2>
             <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: 2 }}>
               PDF · Final Draft (.fdx) · Fountain · Plain text
@@ -201,7 +206,7 @@ export default function UploadModal({ onClose }) {
                   disabled={!file}
                   style={{ flex: 1, justifyContent: 'center', opacity: !file ? 0.5 : 1 }}
                 >
-                  Parse & Analyze
+                  {replaceMode ? 'Re-parse & Replace' : 'Parse & Analyze'}
                 </button>
                 <button className="btn btn-secondary" onClick={onClose}>
                   Cancel
@@ -211,6 +216,7 @@ export default function UploadModal({ onClose }) {
             {isProcessing && (
               <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontStyle: 'italic', textAlign: 'center', flex: 1, paddingTop: 4 }}>
                 Claude is reading your screenplay… (~30–60s for a feature)
+                {replaceMode && <div style={{ fontSize: '0.7rem', color: '#C09A30', marginTop: 4 }}>⚠ This will replace all scenes and analysis in the current project.</div>}
               </div>
             )}
           </div>

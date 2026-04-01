@@ -8,14 +8,22 @@ import Header from './Header'
 import FractalCanvas from '../canvas/FractalCanvas'
 import DemoBanner from '../shared/DemoBanner'
 import ProjectLobby from '../../views/ProjectLobby'
+import SceneDrawer from './SceneDrawer'
+import BoardView from '../../views/BoardView'
+import TimelineView from '../../views/TimelineView'
+import OutlineView from '../../views/OutlineView'
+import ColorModeSelector from './ColorModeSelector'
 
 export default function AppShell() {
-  const { sidebarOpen, screenplay, activeProjectId } = useScreenplayStore()
+  const { sidebarOpen, screenplay, activeProjectId, viewType } = useScreenplayStore()
 
   // No active project → show lobby
   if (!activeProjectId || !screenplay) {
     return <ProjectLobby />
   }
+
+  // Determine if we show fractal canvas or an alternative view
+  const isFractalView = viewType === 'fractal'
 
   return (
     <div className="app-shell">
@@ -29,13 +37,37 @@ export default function AppShell() {
           </div>
         )}
 
-        {/* Center — Fractal Canvas */}
+        {/* Center — Canvas or Alternative View */}
         <div className="app-canvas">
-          <ZoomBar />
-          <LensSelector />
-          <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-            <FractalCanvas />
-          </div>
+          {isFractalView ? (
+            <>
+              <ZoomBar />
+              <LensSelector />
+              <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+                <FractalCanvas />
+              </div>
+            </>
+          ) : (
+            <>
+              {/* Shared toolbar for non-fractal views */}
+              <div style={{
+                height: 'var(--zoombar-height)',
+                background: 'var(--bg-surface)',
+                borderBottom: '1px solid var(--border-default)',
+                display: 'flex', alignItems: 'center',
+                padding: '0 16px', gap: 8, flexShrink: 0,
+              }}>
+                <LensSelector />
+                <div style={{ flex: 1 }} />
+                <ColorModeSelector />
+              </div>
+              <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+                {viewType === 'board' && <BoardView />}
+                {viewType === 'timeline' && <TimelineView />}
+                {viewType === 'outline' && <OutlineView />}
+              </div>
+            </>
+          )}
         </div>
 
         {/* Right — AI Analysis Panel */}
@@ -43,7 +75,9 @@ export default function AppShell() {
           <AIPanel />
         </div>
       </div>
+
+      {/* Scene Slide-Out Drawer — overlays everything */}
+      <SceneDrawer />
     </div>
   )
 }
-

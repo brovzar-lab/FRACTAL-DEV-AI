@@ -1,11 +1,26 @@
-import { PanelLeftOpen, PanelLeftClose, Moon, Sun, Upload, ArrowLeft } from 'lucide-react'
+import { PanelLeftOpen, PanelLeftClose, Moon, Sun, Upload, ArrowLeft, LayoutGrid, Clock, List, Layers, PanelRight, PanelBottom, PanelLeft, RefreshCw } from 'lucide-react'
 import useScreenplayStore from '../../store/screenplayStore'
 import UploadModal from '../upload/UploadModal'
 import { useState } from 'react'
 
+const VIEW_OPTIONS = [
+  { id: 'fractal',  label: 'Fractal',  icon: Layers,     short: 'F' },
+  { id: 'board',    label: 'Board',    icon: LayoutGrid,  short: 'B' },
+  { id: 'timeline', label: 'Timeline', icon: Clock,       short: 'T' },
+  { id: 'outline',  label: 'Outline',  icon: List,        short: 'O' },
+]
+
+const DRAWER_OPTIONS = [
+  { id: 'right',  icon: PanelRight,  label: 'Right panel' },
+  { id: 'bottom', icon: PanelBottom, label: 'Bottom panel' },
+  { id: 'left',   icon: PanelLeft,   label: 'Left panel' },
+]
+
 export default function Header() {
-  const { toggleTheme, toggleSidebar, sidebarOpen, theme, screenplay, closeProject } = useScreenplayStore()
+  const { toggleTheme, toggleSidebar, sidebarOpen, theme, screenplay, closeProject, viewType, setViewType, sceneDrawerDirection, setSceneDrawerDirection } = useScreenplayStore()
   const [showUpload, setShowUpload] = useState(false)
+  const [showReplace, setShowReplace] = useState(false)
+  const [showDrawerPicker, setShowDrawerPicker] = useState(false)
 
   return (
     <>
@@ -71,10 +86,64 @@ export default function Header() {
               {screenplay.title}
             </div>
           )}
+
+          {/* View Switcher — only show when in a project */}
+          {screenplay && (
+            <div style={{
+              marginLeft: 12,
+              paddingLeft: 12,
+              borderLeft: '1px solid rgba(255,255,255,0.1)',
+              display: 'flex',
+              gap: 2,
+              alignItems: 'center'
+            }}>
+              {VIEW_OPTIONS.map(v => {
+                const Icon = v.icon
+                const isActive = viewType === v.id
+                return (
+                  <button
+                    key={v.id}
+                    className="btn btn-ghost btn-sm"
+                    onClick={() => setViewType(v.id)}
+                    title={v.label}
+                    style={{
+                      padding: '4px 8px',
+                      gap: 4,
+                      color: isActive ? '#fff' : 'rgba(232,229,222,0.45)',
+                      background: isActive ? 'rgba(27,79,138,0.35)' : 'transparent',
+                      borderRadius: 4,
+                      fontSize: '0.7rem',
+                      fontWeight: isActive ? 600 : 400,
+                      transition: 'all 0.15s',
+                    }}
+                  >
+                    <Icon size={13} />
+                    <span style={{ display: 'none' }}>{v.label}</span>
+                  </button>
+                )
+              })}
+            </div>
+          )}
         </div>
 
         {/* Right: controls */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          {/* Replace Script — only when inside a project */}
+          {screenplay && (
+            <button
+              className="btn btn-sm btn-ghost"
+              onClick={() => setShowReplace(true)}
+              title="Re-upload a new file to replace this screenplay"
+              style={{
+                color: 'rgba(232,229,222,0.6)',
+                gap: 5
+              }}
+            >
+              <RefreshCw size={13} />
+              Replace Script
+            </button>
+          )}
+
           {/* Upload / New Script */}
           <button
             className="btn btn-sm"
@@ -103,6 +172,47 @@ export default function Header() {
             Projects
           </button>
 
+          {/* Scene Drawer Direction picker */}
+          {screenplay && (
+            <div style={{ position: 'relative' }}>
+              <button
+                className="btn btn-ghost btn-icon"
+                onClick={() => setShowDrawerPicker(!showDrawerPicker)}
+                title={`Scene panel: ${sceneDrawerDirection}`}
+                style={{ color: 'rgba(232,229,222,0.6)' }}
+              >
+                {sceneDrawerDirection === 'right' ? <PanelRight size={15} /> : sceneDrawerDirection === 'bottom' ? <PanelBottom size={15} /> : <PanelLeft size={15} />}
+              </button>
+              {showDrawerPicker && (
+                <div style={{
+                  position: 'absolute', top: '100%', right: 0, marginTop: 4,
+                  background: 'var(--bg-surface)', border: '1px solid var(--border-default)',
+                  borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-raised)',
+                  padding: 4, zIndex: 200, display: 'flex', gap: 2
+                }}>
+                  {DRAWER_OPTIONS.map(d => {
+                    const DIcon = d.icon
+                    return (
+                      <button
+                        key={d.id}
+                        className="btn btn-ghost btn-sm"
+                        onClick={() => { setSceneDrawerDirection(d.id); setShowDrawerPicker(false) }}
+                        title={d.label}
+                        style={{
+                          padding: '5px 7px',
+                          background: sceneDrawerDirection === d.id ? 'var(--accent-primary)' : 'transparent',
+                          color: sceneDrawerDirection === d.id ? '#fff' : 'var(--text-secondary)',
+                        }}
+                      >
+                        <DIcon size={14} />
+                      </button>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Theme toggle */}
           <button
             onClick={toggleTheme}
@@ -116,6 +226,7 @@ export default function Header() {
       </header>
 
       {showUpload && <UploadModal onClose={() => setShowUpload(false)} />}
+      {showReplace && <UploadModal onClose={() => setShowReplace(false)} replaceMode />}
     </>
   )
 }

@@ -1,5 +1,6 @@
 import useScreenplayStore from '../../store/screenplayStore'
-import { Brain, Sparkles } from 'lucide-react'
+import { Brain, Sparkles, RefreshCw } from 'lucide-react'
+import StaleBadge from '../shared/StaleBadge'
 
 const LENS_LABELS = {
   'story-grid': 'Story Grid',
@@ -70,6 +71,7 @@ export default function DiagnosisPanel() {
             DEMO
           </span>
         )}
+        {zoom >= 3 && activeUnitId && <StaleBadge sceneId={activeUnitId} style={{ marginLeft: 4 }} />}
       </div>
 
       {/* Lens-specific notes */}
