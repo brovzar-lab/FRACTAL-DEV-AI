@@ -1,6 +1,6 @@
 import BMOCCard from '../scene/BMOCCard'
 
-export default function ChatMessage({ message }) {
+export default function ChatMessage({ message, onWhy }) {
   if (!message) return null
 
   if (message.role === 'user') {
@@ -54,6 +54,27 @@ export default function ChatMessage({ message }) {
       {message.cardType === 'bmoc' && message.cardData && (
         <div style={{ marginTop: '10px' }}>
           <BMOCCard analysis={message.cardData} />
+        </div>
+      )}
+
+      {onWhy && (
+        <div style={{ marginTop: '8px' }}>
+          <button
+            onClick={() => onWhy(message.id)}
+            style={{
+              padding: '2px 8px',
+              borderRadius: 'var(--radius-sm)',
+              fontSize: '0.6875rem',
+              fontWeight: 500,
+              fontFamily: 'var(--font-ui)',
+              color: 'var(--text-muted)',
+              background: 'transparent',
+              border: '1px solid var(--border-default)',
+              cursor: 'pointer',
+            }}
+          >
+            Why?
+          </button>
         </div>
       )}
     </div>

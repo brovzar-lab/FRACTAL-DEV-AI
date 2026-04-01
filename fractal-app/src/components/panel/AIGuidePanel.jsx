@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import useUIStore from '../../store/uiStore'
 import useScreenplayStore from '../../store/screenplayStore'
 import useAnalysisStore from '../../store/analysisStore'
@@ -47,6 +47,63 @@ export default function AIGuidePanel() {
   const messagesEndRef = useRef(null)
 
   const messages = screenplay?.guideThread || []
+
+  const contextLabel = useMemo(() => {
+    if (zoom === 0 || !activeUnitId) return 'Full Script'
+    const typeMap = { 1: 'act', 2: 'sequence', 3: 'scene', 4: 'scene' }
+    const unitType = typeMap[zoom]
+    const unit = findUnit(screenplay, unitType, activeUnitId)
+    if (!unit) return 'Full Script'
+    if (unitType === 'act') return unit.label || 'Act'
+    if (unitType === 'sequence') return unit.label || 'Sequence'
+    if (unitType === 'scene') return `${unit.heading || 'Scene'}${unit.pageRange ? ` · p.${unit.pageRange[0]}` : ''}`
+    return 'Full Script'
+  }, [zoom, activeUnitId, screenplay])
+
+  const handleWhy = async (messageId) => {
+    if (isLoading) return
+    setIsLoading(true)
+
+    const whyText = 'Why does this matter? Explain the principle behind your last suggestion.'
+    const currentMessages = screenplay?.guideThread || []
+    const context = buildCurrentContext(zoom, activeUnitId, screenplay)
+
+    const userMsg = {
+      id: `msg-${Date.now()}`,
+      role: 'user',
+      content: whyText,
+      timestamp: new Date().toISOString(),
+      contextUnitId: activeUnitId,
+      contextUnitType: context.unitType,
+      cardType: null,
+      cardData: null,
+    }
+    appendGuideMessage(userMsg)
+
+    const thread = [...currentMessages, userMsg].slice(-6).map(m => ({
+      role: m.role,
+      content: m.content,
+    }))
+
+    try {
+      // Always use coach mode for Why? explanations
+      const result = await chatWithGuide(whyText, context, 'coach', thread, screenplay)
+      appendGuideMessage({
+        id: `msg-${Date.now() + 1}`,
+        role: 'ai',
+        content: result.content,
+        timestamp: new Date().toISOString(),
+        contextUnitId: activeUnitId,
+        contextUnitType: context.unitType,
+        cardType: result.cardType,
+        cardData: result.cardData,
+      })
+    } catch (err) {
+      console.error('[AIGuidePanel] Why? failed:', err)
+    } finally {
+      setIsLoading(false)
+    }
+  }
 
   // Show opening message from snapshot cache on first mount (no network call)
   useEffect(() => {
@@ -169,6 +226,37 @@ export default function AIGuidePanel() {
         ))}
       </div>
 
+      {/* Context bar — shows current navigation context */}
+      <div style={{
+        padding: '5px 10px',
+        borderBottom: '1px solid var(--border-default)',
+        background: 'var(--bg-surface)',
+        flexShrink: 0,
+        display: 'flex',
+        alignItems: 'center',
+        gap: '6px',
+      }}>
+        <span style={{
+          fontFamily: 'var(--font-ui)',
+          fontSize: '0.6875rem',
+          color: 'var(--text-muted)',
+          flexShrink: 0,
+        }}>
+          Viewing:
+        </span>
+        <span style={{
+          fontFamily: 'var(--font-ui)',
+          fontSize: '0.6875rem',
+          color: 'var(--text-secondary)',
+          fontWeight: 500,
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          whiteSpace: 'nowrap',
+        }}>
+          {contextLabel}
+        </span>
+      </div>
+
       {/* Chat area */}
       <div style={{
         flex: 1,
@@ -209,7 +297,11 @@ export default function AIGuidePanel() {
         )}
 
         {messages.map(msg => (
-          <ChatMessage key={msg.id} message={msg} />
+          <ChatMessage
+            key={msg.id}
+            message={msg}
+            onWhy={msg.role === 'ai' ? handleWhy : undefined}
+          />
         ))}
 
         {isLoading && (
