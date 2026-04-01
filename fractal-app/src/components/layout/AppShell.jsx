@@ -18,12 +18,14 @@ import ColorModeSelector from './ColorModeSelector'
 
 export default function AppShell() {
   const { sidebarOpen, screenplay, activeProjectId, viewType } = useScreenplayStore()
-  const wizardStep = useUIStore(s => s.wizardStep)
   const setWizardStep = useUIStore(s => s.setWizardStep)
 
   // Auto-start wizard for fresh uploads (no existing snapshot)
   useEffect(() => {
-    if (screenplay && !screenplay.snapshot && wizardStep === 0) {
+    // Read wizardStep live from the store, not from the closure
+    // (dependency array is [screenplay?.id] so wizardStep is intentionally excluded)
+    const currentWizardStep = useUIStore.getState().wizardStep
+    if (screenplay && !screenplay.snapshot && currentWizardStep === 0) {
       setWizardStep(1)
     }
   }, [screenplay?.id])
