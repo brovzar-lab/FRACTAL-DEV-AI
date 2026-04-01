@@ -46,8 +46,23 @@ const useAnalysisStore = create(
       return { analysisCache: next }
     }),
 
+    // Full-script snapshot cache
+    // Source of truth is screenplay.snapshot in Firestore;
+    // this is the in-memory copy populated on project load
+    snapshotCache: null,
+    snapshotStale: false,
+
+    // Set snapshot (call after generateFullSnapshot() resolves)
+    setSnapshot: (data) => set({ snapshotCache: data, snapshotStale: false }),
+
+    // Mark snapshot as stale (call when screenplay content changes)
+    markSnapshotStale: () => set({ snapshotStale: true }),
+
+    // Clear snapshot (call on project close)
+    clearSnapshot: () => set({ snapshotCache: null, snapshotStale: false }),
+
     // Clear all cache
-    clearCache: () => set({ analysisCache: {} }),
+    clearCache: () => set({ analysisCache: {}, snapshotCache: null, snapshotStale: false }),
 
     // Batch analysis tracking
     startBatch: (total) => set({ batchRunning: true, batchProgress: { current: 0, total, currentScene: '' } }),

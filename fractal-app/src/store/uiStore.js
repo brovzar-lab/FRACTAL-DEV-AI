@@ -66,6 +66,12 @@ const useUIStore = create(
       panelTab: 'diagnosis',
       setPanelTab: (tab) => set({ panelTab: tab }),
 
+      // Wizard step state — controls onboarding wizard overlay
+      // 0 = not started, 1-5 = wizard steps in progress, 6 = complete
+      // Reset to 0 on project close (not persisted to localStorage)
+      wizardStep: 0,
+      setWizardStep: (step) => set({ wizardStep: step }),
+
       // Scene slide-out drawer
       sceneDrawerOpen: false,
       sceneDrawerId: null,
@@ -169,6 +175,7 @@ const useUIStore = create(
         activeUnitId: null,
         sceneDrawerOpen: false,
         sceneDrawerId: null,
+        wizardStep: 0,
       }),
     }),
     {
