@@ -334,8 +334,11 @@ function buildScriptOutline(screenplay) {
  * @returns {object} snapshot
  */
 export async function generateFullSnapshot(screenplay, methodology) {
-  const meta = METHODOLOGY_META[methodology] || METHODOLOGY_META['story-grid']
-  const { label: methodologyLabel, description: methodologyDescription } = meta
+  const meta = METHODOLOGY_META[methodology]
+  if (!meta) {
+    console.warn(`[generateFullSnapshot] Unknown methodology "${methodology}", falling back to story-grid`)
+  }
+  const { label: methodologyLabel, description: methodologyDescription } = meta || METHODOLOGY_META['story-grid']
 
   const prompt = `You are a professional screenplay analyst. Analyze this entire screenplay and return a JSON structural snapshot.
 
@@ -396,7 +399,15 @@ Rules:
     }
   }
 
-  return callClaude(prompt, 4000, false, 120000)
+  const rawText = await callClaude(prompt, 4000, true, 120000)
+  let snapshot
+  try {
+    const cleaned = rawText.replace(/```json\n?|\n?```/g, '').trim()
+    snapshot = JSON.parse(cleaned)
+  } catch (_) {
+    snapshot = repairTruncatedJSON(rawText.replace(/```json\n?|\n?```/g, '').trim())
+  }
+  return snapshot
 }
 
 // ============================================================
@@ -519,7 +530,7 @@ async function callClaude(prompt, maxTokens = 1500, rawText = false, timeout = 3
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       signal: controller.signal,
-      body: JSON.stringify({ message: prompt, max_tokens: maxTokens })
+      body: JSON.stringify({ message: prompt, model: 'claude-sonnet-4-20250514', max_tokens: maxTokens })
     })
     if (!response.ok) throw new Error(`Claude API error: ${response.status}`)
     const data = await response.json()
