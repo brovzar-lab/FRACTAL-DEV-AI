@@ -411,6 +411,91 @@ Rules:
 }
 
 // ============================================================
+// GUIDE CHAT
+// ============================================================
+
+/**
+ * Send a message to the AI Guide and get a response.
+ *
+ * @param {string} message - The user's message
+ * @param {object} context - Current navigation context
+ *   { unitId: string|null, unitType: 'scene'|'sequence'|'act'|'full-script', unitData: object|null }
+ * @param {'director'|'coach'|'fast'} mode - Guide interaction mode
+ * @param {Array} thread - Recent conversation history (last 6 messages max)
+ *   Each: { role: 'user'|'ai', content: string }
+ * @param {object} screenplay - The screenplay object (for context building)
+ * @returns {{ content: string, cardType: string|null, cardData: object|null }}
+ */
+export async function chatWithGuide(message, context, mode, thread, screenplay) {
+  const prompt = buildGuidePrompt(message, context, mode, thread, screenplay)
+
+  if (USE_MOCK) {
+    await delay(800)
+    const mockResponses = {
+      director: `No value reversal at the midpoint (Scene 23, p.54). The Climax beat arrives but the protagonist's situation doesn't shift. Three options:\n\nA) Add a revelation scene at p.54-55 that reverses their advantage\nB) Rewrite the Sc.23 climax: protagonist wins, then immediately loses\nC) Pull Scene 26 forward — it already has a strong reversal built in\n\nWhich direction?`,
+      coach: `Story Grid requires every scene to end with a value shift at the Climax beat — the protagonist's situation must move from positive to negative or vice versa. Scene 23 (p.54) has all four BMOC elements but the Climax doesn't deliver a reversal, leaving Act II without structural momentum.\n\nThree options:\n\nA) Add a revelation scene at p.54-55 that reverses their advantage\nB) Rewrite the Sc.23 climax: protagonist wins, then immediately loses\nC) Pull Scene 26 forward — it already has a strong reversal\n\nWhich works best for your character's arc?`,
+      fast: `INT. DETECTIVE BUREAU - NIGHT\n\nMARCO reviews the evidence board. He spots the connection — CARTER's signature on the transfer order. He reaches for the phone.\n\nThen stops.\n\nHis own name is on the bottom of the page.\n\nHe sets the phone down slowly.\n\n                    MARCO\n          I was there.\n\nThe realization hits him like a physical blow. He was part of it. He closes the folder.\n\nHe walks to the window. The city below, indifferent.`
+    }
+    return { content: mockResponses[mode] || mockResponses.director, cardType: null, cardData: null }
+  }
+
+  const raw = await callClaude(prompt, 600, true, 30000)
+  return { content: raw.trim(), cardType: null, cardData: null }
+}
+
+function buildGuidePrompt(message, context, mode, thread, screenplay) {
+  const modeInstructions = {
+    director: `You are the AI Guide for a professional screenwriter using the ${screenplay?.methodology || 'story-grid'} methodology. Be direct and efficient. Give specific options (A/B/C) with tradeoffs. No methodology explanations unless asked. Reference specific scenes, pages, and beats from the script.`,
+    coach: `You are the AI Guide and screenwriting coach for a writer using the ${screenplay?.methodology || 'story-grid'} methodology. Before giving options, briefly explain the relevant principle from the methodology (1-2 sentences). Then give specific options (A/B/C). Reference specific scenes, pages, and beats.`,
+    fast: `You are the AI Guide. The writer wants a fast rewrite. Generate a rewritten version of the scene immediately with minimal framing. Respond with ONLY the rewritten scene text in proper screenplay format.`
+  }
+
+  const contextBlock = buildContextBlock(context, screenplay)
+  const historyBlock = thread.slice(-6).map(m => `${m.role === 'user' ? 'Writer' : 'Guide'}: ${m.content}`).join('\n')
+
+  return `${modeInstructions[mode] || modeInstructions.director}
+
+SCREENPLAY: ${screenplay?.title || 'Untitled'} (${screenplay?.genre || 'Unknown'}, ${screenplay?.pageCount || '?'} pages)
+METHODOLOGY: ${screenplay?.methodology || 'story-grid'}
+
+CURRENT CONTEXT:
+${contextBlock}
+
+${historyBlock ? `CONVERSATION SO FAR:\n${historyBlock}\n` : ''}
+Writer: ${message}
+Guide:`
+}
+
+function buildContextBlock(context, _screenplay) {
+  if (!context?.unitId || !context?.unitType) {
+    return 'Viewing: Full script overview'
+  }
+
+  if (context.unitType === 'scene' && context.unitData) {
+    const scene = context.unitData
+    return `Viewing Scene: ${scene.heading} (p.${scene.pageRange?.[0]}-${scene.pageRange?.[1]})
+Synopsis: ${scene.synopsis || 'No synopsis'}
+Diagnostic status: ${scene.diagnostics?.status || 'unknown'}
+Characters: ${scene.characters?.join(', ') || 'unknown'}`
+  }
+
+  if (context.unitType === 'sequence' && context.unitData) {
+    const seq = context.unitData
+    return `Viewing Sequence: ${seq.label}
+Thematic function: ${seq.thematicFunction || 'unknown'}
+Scene count: ${seq.scenes?.length || 0}`
+  }
+
+  if (context.unitType === 'act' && context.unitData) {
+    const act = context.unitData
+    return `Viewing Act: ${act.label} (pp.${act.pageRange?.join('-')})
+Diagnostic: ${act.diagnostics?.status || 'unknown'} — ${act.diagnostics?.note || ''}`
+  }
+
+  return `Viewing: ${context.unitType} (${context.unitId})`
+}
+
+// ============================================================
 // PROMPT BUILDERS
 // ============================================================
 
