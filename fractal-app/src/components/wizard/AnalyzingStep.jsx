@@ -30,6 +30,7 @@ export default function AnalyzingStep() {
     if (!screenplay) return
 
     let cancelled = false
+    const abortRef = { current: false }
 
     async function run() {
       try {
@@ -37,7 +38,7 @@ export default function AnalyzingStep() {
         // The phase ticker is cosmetic — it shows progress even though we have one API call.
         let tick = 0
         tickerRef.current = setInterval(() => {
-          if (cancelled) return
+          if (abortRef.current) return
           tick++
           if (tick < PHASES.length) setPhase(tick)
         }, 3000)
@@ -55,10 +56,8 @@ export default function AnalyzingStep() {
         setSnapshot(snapshot)   // in-memory analysisStore cache
         saveSnapshot(snapshot)  // persists to screenplay.snapshot → Firestore
 
-        // Short pause so the user sees the completed state, then advance
-        setTimeout(() => {
-          if (!cancelled) setWizardStep(4)
-        }, 800)
+        // Advance wizard — use a ref-safe timeout that won't be blocked by re-render cleanup
+        setTimeout(() => setWizardStep(4), 800)
 
       } catch (err) {
         if (cancelled) return
@@ -70,6 +69,7 @@ export default function AnalyzingStep() {
     run()
     return () => {
       cancelled = true
+      abortRef.current = true
       clearInterval(tickerRef.current)
     }
   }, [retryCount, screenplay]) // re-run when retryCount changes (retry support)

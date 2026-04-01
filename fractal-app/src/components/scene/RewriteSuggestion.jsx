@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Wand2, Check, X, Loader, RefreshCw } from 'lucide-react'
 import useScreenplayStore from '../../store/screenplayStore'
+import { rewriteSceneWithLens } from '../../services/claudeService'
 
 /**
  * RewriteSuggestion — Inline AI rewrite with accept/reject
@@ -18,12 +19,12 @@ export default function RewriteSuggestion({ scene, editor }) {
     setAccepted(false)
 
     try {
-      // For now, use mock rewrite. When proxy is live, this calls Claude.
-      await new Promise(r => setTimeout(r, 1200))
-      const rewrite = generateMockRewrite(scene, lens)
+      const rewrite = await rewriteSceneWithLens(scene, lens)
       setSuggestion(rewrite)
     } catch (e) {
-      console.error(e)
+      console.error('[RewriteSuggestion] Error:', e)
+      // Fallback to a simple error state
+      setSuggestion({ rationale: `Error: ${e.message}`, rewrittenText: scene.text || '', lens })
     } finally {
       setLoading(false)
     }
@@ -206,64 +207,4 @@ const LENS_LABELS = {
   'lyons': 'Lyons',
 }
 
-function generateMockRewrite(scene, lens) {
-  const text = scene.text || ''
-  const lines = text.split('\n')
-  
-  // Create a meaningful rewrite based on the lens methodology
-  const rewrites = {
-    'story-grid': {
-      rationale: 'The scene\'s Progressive Complication is weak. Strengthening the turning point so it forces a genuine crisis decision.',
-      transform: (t) => {
-        // Add a complication line before the last quarter
-        const splitPoint = Math.floor(lines.length * 0.6)
-        const enhanced = [...lines]
-        enhanced.splice(splitPoint, 0, '', 'A sound from the hallway. Something that shouldn\'t be there.', '')
-        return enhanced.join('\n')
-      }
-    },
-    'weiland': {
-      rationale: 'The Ghost needs to surface here. Adding a sensory trigger that connects to the protagonist\'s original wound.',
-      transform: (t) => {
-        const splitPoint = Math.floor(lines.length * 0.5)
-        const enhanced = [...lines]
-        enhanced.splice(splitPoint, 0, '', 'The smell of rain on pavement. The same rain from that night. C stops. His hands tremble.', '')
-        return enhanced.join('\n')
-      }
-    },
-    'save-cat': {
-      rationale: 'This section needs to deliver on the "promise of the premise." The fun-and-games element is missing.',
-      transform: (t) => {
-        const splitPoint = Math.floor(lines.length * 0.4)
-        const enhanced = [...lines]
-        enhanced.splice(splitPoint, 0, '', 'For the first time, C discovers he can move something heavy. A chair slides across the floor. He laughs — a ghost\'s laugh, full of possibility.', '')
-        return enhanced.join('\n')
-      }
-    },
-    'bmoc': {
-      rationale: 'The Obstacle needs sharper antagonist leverage. The opposition should attack the protagonist\'s specific vulnerability.',
-      transform: (t) => {
-        const splitPoint = Math.floor(lines.length * 0.7)
-        const enhanced = [...lines]
-        enhanced.splice(splitPoint, 0, '', 'The new tenant picks up C\'s photograph from the mantle. Studies it. Then drops it in the trash.', '')
-        return enhanced.join('\n')
-      }
-    },
-    'lyons': {
-      rationale: 'The immoral effect isn\'t visible. Adding a moment where the protagonist\'s blind spot causes harm the audience can see.',
-      transform: (t) => {
-        const splitPoint = Math.floor(lines.length * 0.65)
-        const enhanced = [...lines]
-        enhanced.splice(splitPoint, 0, '', 'M looks at the broken cup. Her hand shakes. She\'s been cleaning up after ghosts for too long. Her eyes are the eyes of someone running out of reasons to stay.', '')
-        return enhanced.join('\n')
-      }
-    },
-  }
 
-  const lensRewrite = rewrites[lens] || rewrites['bmoc']
-  return {
-    rationale: lensRewrite.rationale,
-    rewrittenText: lensRewrite.transform(text),
-    lens,
-  }
-}

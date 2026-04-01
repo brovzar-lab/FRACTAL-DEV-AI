@@ -274,7 +274,7 @@ export async function analyzeBeat(scene, beatText, pos) {
 }
 
 // ============================================================
-// REWRITE VARIANT
+// REWRITE VARIANT (legacy — used by direct instruction rewrites)
 // ============================================================
 export async function rewriteScene(scene, instruction) {
   const prompt = `You are a master screenwriter using BMOC scene engineering. Rewrite this scene based on the instruction.
@@ -290,6 +290,8 @@ SCENE DIAGNOSTICS:
 - Missing: ${getMissingBMOC(scene.diagnostics)}
 - Value Shift: ${scene.diagnostics?.valueShift ? 'Present' : 'MISSING'}
 
+CRITICAL: The rewritten scene MUST be in the SAME LANGUAGE as the original scene text. If the original is in Spanish, rewrite in Spanish. If English, rewrite in English.
+
 Rewrite the scene. Keep the same characters and basic situation. Fix the identified structural issues.
 Return ONLY the rewritten scene text in proper screenplay format. No explanation.`
 
@@ -299,6 +301,68 @@ Return ONLY the rewritten scene text in proper screenplay format. No explanation
   }
 
   return callClaude(prompt, 2000, true)
+}
+
+// ============================================================
+// LENS-AWARE REWRITE (used by RewriteSuggestion component)
+// Returns { rationale, rewrittenText, lens }
+// ============================================================
+export async function rewriteSceneWithLens(scene, lens) {
+  const methodology = METHODOLOGY_META[lens] || METHODOLOGY_META['story-grid']
+  const sceneText = scene.text || ''
+
+  const prompt = `You are a master screenwriter and structural analyst using the ${methodology.label} methodology (${methodology.description}).
+
+You must rewrite the following scene to address its structural weaknesses.
+
+SCENE HEADING: ${scene.heading}
+SCENE SYNOPSIS: ${scene.synopsis || 'Not available'}
+CHARACTERS: ${(scene.characters || []).join(', ') || 'Not identified'}
+PAGE RANGE: ${scene.pageRange ? scene.pageRange.join('-') : 'Unknown'}
+
+FULL SCENE TEXT:
+---
+${sceneText}
+---
+
+STRUCTURAL DIAGNOSTICS:
+- Status: ${scene.diagnostics?.status || 'unknown'}
+- Dramatic Question: ${scene.diagnostics?.beatQuestion || 'Not identified'}
+- Beginning present: ${scene.diagnostics?.bPresent ? 'Yes' : 'NO — MISSING'}
+- Middle present: ${scene.diagnostics?.mPresent ? 'Yes' : 'NO — MISSING'}
+- Obstacle present: ${scene.diagnostics?.oPresent ? 'Yes' : 'NO — MISSING'}
+- Climax present: ${scene.diagnostics?.cPresent ? 'Yes' : 'NO — MISSING'}
+- Value Shift: ${scene.diagnostics?.valueShift ? 'Present' : 'MISSING'}
+- Notes: ${scene.diagnostics?.notes || 'None'}
+
+CRITICAL RULES:
+1. Your rewrite MUST be in the SAME LANGUAGE as the scene text above. If the scene is in Spanish, write the rewrite AND the rationale in Spanish. If English, write in English. MATCH THE LANGUAGE EXACTLY.
+2. Keep the same characters, location, and dramatic situation. Do NOT invent new characters or locations.
+3. Focus on fixing the structural weaknesses identified in the diagnostics using ${methodology.label} principles.
+4. The rewrite should be the COMPLETE scene in proper screenplay format.
+
+Return ONLY valid JSON:
+{
+  "rationale": "1-2 sentences explaining what structural fix you applied (in the scene's language)",
+  "rewrittenText": "The complete rewritten scene text in proper screenplay format"
+}`
+
+  if (USE_MOCK) {
+    await delay(2000)
+    return {
+      rationale: `[Mock] ${methodology.label} rewrite: structural fix for ${scene.heading}`,
+      rewrittenText: sceneText || `${scene.heading}\n\n[Mock rewrite placeholder]`,
+      lens
+    }
+  }
+
+  const result = await callClaude(prompt, 4000)
+  // callClaude with returnRaw=false returns parsed JSON
+  return {
+    rationale: result.rationale || '',
+    rewrittenText: result.rewrittenText || sceneText,
+    lens
+  }
 }
 
 // ============================================================
@@ -370,7 +434,8 @@ Rules:
 - priorities: rank the top 5-10 structural problems by severity
 - healthMap: one entry per sequence using its actual id
 - openingMessage: Director mode — name the #1 problem, offer fix options, under 60 words
-- Analyze against the ${methodologyLabel} framework specifically`
+- Analyze against the ${methodologyLabel} framework specifically
+- IMPORTANT: If the screenplay content (scene headings, synopses) is in Spanish or any non-English language, respond with ALL text fields (summary, detail, title, openingMessage) in that SAME language.`
 
   if (USE_MOCK) {
     await delay(2000)
@@ -461,6 +526,8 @@ METHODOLOGY: ${screenplay?.methodology || 'story-grid'}
 CURRENT CONTEXT:
 ${contextBlock}
 
+IMPORTANT: If the screenplay is written in a non-English language (e.g., Spanish), respond in that same language. Match the screenplay's language.
+
 ${historyBlock ? `CONVERSATION SO FAR:\n${historyBlock}\n` : ''}
 Writer: ${message}
 Guide:`
@@ -503,6 +570,9 @@ Diagnostic: ${act.diagnostics?.status || 'unknown'} — ${act.diagnostics?.note 
 // PROMPT BUILDERS
 // ============================================================
 
+// Language rule injected into all prompt builders
+const LANGUAGE_RULE = `\nIMPORTANT: Detect the language of the scene text. If the screenplay is written in Spanish (or any non-English language), respond with ALL text fields (summary, notes, recommendations, rewritePrompt, etc.) in that SAME language. Match the screenplay's language exactly.\n`
+
 function buildActPrompt(act, lens, screenplay) {
   const lensInstructions = {
     'story-grid': `Apply the Story Grid framework. Assess the Five Commandments (Inciting Incident, Progressive Complication, Crisis, Climax, Resolution). Identify missing obligatory scenes for the genre "${screenplay.genre}".`,
@@ -527,6 +597,7 @@ function buildActPrompt(act, lens, screenplay) {
 
 ${lensInstructions[lens] || lensInstructions['story-grid']}
 
+${LANGUAGE_RULE}
 ACT: ${act.label}
 PAGES: ${act.pageRange.join('-')}
 DIAGNOSTIC STATUS: ${act.diagnostics.status} — ${act.diagnostics.note}
@@ -552,6 +623,7 @@ PARENT ACT: ${act.label}
 THEMATIC FUNCTION: ${seq.thematicFunction}
 LENS: ${lens}
 
+${LANGUAGE_RULE}
 SCENES:
 ${seq.scenes.map(sc => `${sc.heading} (p.${sc.pageRange.join('-')}): ${sc.synopsis}`).join('\n')}`
 }
@@ -580,6 +652,7 @@ Return JSON:
   "rewritePrompt": "A suggested instruction for rewriting this scene"
 }
 
+${LANGUAGE_RULE}
 LENS: ${lens}
 SCENE: ${scene.heading}
 TEXT:
@@ -604,6 +677,7 @@ Return JSON:
 BEAT TEXT:
 ${beatText}
 
+${LANGUAGE_RULE}
 POSITION IN SCENE: ${position}
 SCENE: ${scene.heading}`
 }
