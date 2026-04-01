@@ -33,6 +33,7 @@
   --accent-warm-hover: #963F1A;
   --accent-teal:     #2A7D6F;   /* structural success */
   --accent-gold:     #C09A30;   /* caution, attention */
+  --text-on-accent:  #fff;          /* text on accent-primary backgrounds */
 
   /* Zoom level colors (lens overlay) */
   --zoom-0-color:    #1B4F8A;   /* Full script — blue */
@@ -109,6 +110,7 @@
   --status-fail-bg:  rgba(184,64,64,0.15);
 
   --accent-primary-subtle: rgba(27,79,138,0.15);
+  --text-on-accent:  #fff;          /* stays white in dark mode — accent-primary is always dark blue */
 }
 
 /* === Reset === */

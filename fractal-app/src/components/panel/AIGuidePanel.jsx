@@ -75,6 +75,9 @@ export default function AIGuidePanel() {
     setInput('')
     setIsLoading(true)
 
+    // Capture current messages BEFORE appending so the thread can include userMsg
+    const currentMessages = screenplay?.guideThread || []
+
     // Build context BEFORE creating userMsg so contextUnitType is available
     const context = buildCurrentContext(zoom, activeUnitId, screenplay)
 
@@ -90,8 +93,9 @@ export default function AIGuidePanel() {
     }
     appendGuideMessage(userMsg)
 
-    // Get recent thread for history (last 6 messages)
-    const thread = (screenplay?.guideThread || []).slice(-6).map(m => ({
+    // Build thread from pre-append messages + the new userMsg so Claude always
+    // sees the user's current turn as the last message (avoids stale closure)
+    const thread = [...currentMessages, userMsg].slice(-6).map(m => ({
       role: m.role,
       content: m.content,
     }))
@@ -152,7 +156,7 @@ export default function AIGuidePanel() {
               textTransform: 'capitalize',
               cursor: 'pointer',
               background: guideMode === mode ? 'var(--accent-primary)' : 'transparent',
-              color: guideMode === mode ? '#fff' : 'var(--text-muted)',
+              color: guideMode === mode ? 'var(--text-on-accent)' : 'var(--text-muted)',
               border: guideMode === mode ? '1px solid var(--accent-primary)' : '1px solid var(--border-default)',
               transition: 'all 0.15s ease',
             }}
