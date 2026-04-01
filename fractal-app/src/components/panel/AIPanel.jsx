@@ -1,23 +1,23 @@
-import { useState } from 'react'
 import useScreenplayStore from '../../store/screenplayStore'
 import TaskList from '../tasks/TaskList'
-import DiagnosisPanel from './DiagnosisPanel'
 import NotesPanel from './NotesPanel'
-import DualLensPanel from './DualLensPanel'
-import BatchAnalysis from './BatchAnalysis'
 import EppsPassPanel from './EppsPassPanel'
+import AIGuidePanel from './AIGuidePanel'
 
 const TABS = [
-  { id: 'diagnosis', label: 'Analysis' },
-  { id: 'tasks',     label: 'Tasks' },
-  { id: 'passes',    label: 'Passes' },
-  { id: 'notes',     label: 'Notes' },
+  { id: 'guide',  label: 'Guide ✦' },
+  { id: 'tasks',  label: 'Tasks' },
+  { id: 'passes', label: 'Passes' },
+  { id: 'notes',  label: 'Notes' },
 ]
 
 export default function AIPanel() {
   const { panelTab, setPanelTab, tasks, eppsPasses, activePassId } = useScreenplayStore()
   const openTasks = tasks.filter(t => t.status !== 'done').length
   const activePasses = eppsPasses.filter(p => p.status === 'active').length
+
+  // Legacy migration: 'diagnosis' was the old tab id; treat it as 'guide'
+  const activeTab = panelTab === 'diagnosis' ? 'guide' : panelTab
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
@@ -26,7 +26,7 @@ export default function AIPanel() {
         {TABS.map(tab => (
           <button
             key={tab.id}
-            className={`tab-item ${panelTab === tab.id ? 'active' : ''}`}
+            className={`tab-item ${activeTab === tab.id ? 'active' : ''}`}
             onClick={() => setPanelTab(tab.id)}
           >
             {tab.label}
@@ -54,23 +54,10 @@ export default function AIPanel() {
 
       {/* Panel content */}
       <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-        {panelTab === 'diagnosis' && (
-          <div style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden' }}>
-            {/* Batch Analysis at top */}
-            <div style={{ flexShrink: 0, paddingTop: 10 }}>
-              <BatchAnalysis />
-            </div>
-            {/* Main analysis */}
-            <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-              <DiagnosisPanel />
-              {/* Dual-lens comparison (appears below analysis) */}
-              <DualLensPanel />
-            </div>
-          </div>
-        )}
-        {panelTab === 'tasks'     && <TaskList />}
-        {panelTab === 'passes'    && <EppsPassPanel />}
-        {panelTab === 'notes'     && <NotesPanel />}
+        {activeTab === 'guide'  && <AIGuidePanel />}
+        {activeTab === 'tasks'  && <TaskList />}
+        {activeTab === 'passes' && <EppsPassPanel />}
+        {activeTab === 'notes'  && <NotesPanel />}
       </div>
     </div>
   )
