@@ -466,7 +466,7 @@ Writer: ${message}
 Guide:`
 }
 
-function buildContextBlock(context, _screenplay) {
+function buildContextBlock(context) {
   if (!context?.unitId || !context?.unitType) {
     return 'Viewing: Full script overview'
   }
