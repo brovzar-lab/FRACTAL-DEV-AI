@@ -376,6 +376,7 @@ function useScreenplayStore(selector) {
     sceneDrawerOpen: ui.sceneDrawerOpen,
     sceneDrawerId: ui.sceneDrawerId,
     sceneDrawerDirection: ui.sceneDrawerDirection,
+    wizardStep: ui.wizardStep,
 
     // -- Script state --
     screenplay: script.screenplay,
@@ -387,6 +388,8 @@ function useScreenplayStore(selector) {
     analysisCache: analysis.analysisCache,
     batchRunning: analysis.batchRunning,
     batchProgress: analysis.batchProgress,
+    snapshotCache: analysis.snapshotCache,
+    snapshotStale: analysis.snapshotStale,
 
     // -- Actions (project) --
     closeProject: () => {
@@ -447,6 +450,7 @@ function useScreenplayStore(selector) {
     openSceneDrawer: ui.openSceneDrawer,
     closeSceneDrawer: ui.closeSceneDrawer,
     setSceneDrawerDirection: ui.setSceneDrawerDirection,
+    setWizardStep: ui.setWizardStep,
 
     // -- Actions (zoom) — wrappers that pass screenplay for path calculation --
     drillInto: (type, id) => ui.drillInto(type, id, script.screenplay),
@@ -491,6 +495,9 @@ function useScreenplayStore(selector) {
     startBatch: analysis.startBatch,
     updateBatchProgress: analysis.updateBatchProgress,
     endBatch: analysis.endBatch,
+    setSnapshot: analysis.setSnapshot,
+    markSnapshotStale: analysis.markSnapshotStale,
+    clearSnapshot: analysis.clearSnapshot,
 
     // Legacy
     loadFromFirestore: async () => false,
@@ -529,6 +536,9 @@ useScreenplayStore.getState = () => {
     analysisCache: analysis.analysisCache,
     batchRunning: analysis.batchRunning,
     batchProgress: analysis.batchProgress,
+    snapshotCache: analysis.snapshotCache,
+    snapshotStale: analysis.snapshotStale,
+    wizardStep: ui.wizardStep,
 
     // Actions (same as hook version)
     closeProject: () => {
@@ -584,6 +594,7 @@ useScreenplayStore.getState = () => {
     openSceneDrawer: (id, dir) => useUIStore.getState().openSceneDrawer(id, dir),
     closeSceneDrawer: () => useUIStore.getState().closeSceneDrawer(),
     setSceneDrawerDirection: (d) => useUIStore.getState().setSceneDrawerDirection(d),
+    setWizardStep: () => useUIStore.getState().setWizardStep(...arguments),
     drillInto: (type, id) => useUIStore.getState().drillInto(type, id, useScriptStore.getState().screenplay),
     drillOut: (z) => useUIStore.getState().drillOut(z),
     goToUnit: (type, id) => useUIStore.getState().goToUnit(type, id, useScriptStore.getState().screenplay),
@@ -620,6 +631,9 @@ useScreenplayStore.getState = () => {
     startBatch: (t) => useAnalysisStore.getState().startBatch(t),
     updateBatchProgress: (c, s) => useAnalysisStore.getState().updateBatchProgress(c, s),
     endBatch: () => useAnalysisStore.getState().endBatch(),
+    setSnapshot: (...a) => useAnalysisStore.getState().setSnapshot(...a),
+    markSnapshotStale: () => useAnalysisStore.getState().markSnapshotStale(),
+    clearSnapshot: () => useAnalysisStore.getState().clearSnapshot(),
     loadFromFirestore: async () => false,
   }
 }

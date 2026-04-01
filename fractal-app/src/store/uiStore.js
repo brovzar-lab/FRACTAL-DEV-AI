@@ -180,6 +180,7 @@ const useUIStore = create(
     }),
     {
       name: 'fractal-ui-store',
+      // NOTE: wizardStep is intentionally excluded — session-only, must not persist
       partialize: (s) => ({
         theme: s.theme,
         lens: s.lens,
