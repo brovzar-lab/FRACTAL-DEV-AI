@@ -404,7 +404,7 @@ Rules:
   try {
     const cleaned = rawText.replace(/```json\n?|\n?```/g, '').trim()
     snapshot = JSON.parse(cleaned)
-  } catch (_) {
+  } catch {
     snapshot = repairTruncatedJSON(rawText.replace(/```json\n?|\n?```/g, '').trim())
   }
   return snapshot
