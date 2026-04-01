@@ -321,6 +321,25 @@ const useScriptStore = create(
     updatePass: (passId, updates) => set(s => ({
       eppsPasses: s.eppsPasses.map(p => p.id === passId ? { ...p, ...updates } : p)
     })),
+
+    // Set the chosen methodology/lens for this project
+    setMethodology: (methodologyId) => {
+      set(s => ({
+        screenplay: s.screenplay ? { ...s.screenplay, methodology: methodologyId } : s.screenplay
+      }))
+    },
+
+    // Save full-script snapshot to screenplay object.
+    // The auto-save subscription picks this up and persists to Firestore automatically.
+    saveSnapshot: (snapshotData) => {
+      set(s => ({
+        screenplay: s.screenplay ? {
+          ...s.screenplay,
+          snapshot: snapshotData,
+          snapshotGeneratedAt: new Date().toISOString(),
+        } : s.screenplay
+      }))
+    },
   })
 )
 
@@ -328,6 +347,12 @@ const useScriptStore = create(
 function enrichScreenplay(screenplay) {
   if (!screenplay?.acts) return screenplay
   const sp = JSON.parse(JSON.stringify(screenplay))
+
+  // ── NEW: top-level AI guide fields ──
+  if (!sp.methodology) sp.methodology = null           // string | null — chosen lens id e.g. 'story-grid'
+  if (!sp.snapshot) sp.snapshot = null                 // object | null — full-script snapshot from generateFullSnapshot()
+  if (!sp.snapshotGeneratedAt) sp.snapshotGeneratedAt = null  // ISO string | null — timestamp of last snapshot
+
   for (const act of sp.acts) {
     for (const seq of (act.sequences || [])) {
       for (const scene of (seq.scenes || [])) {
@@ -479,6 +504,10 @@ function useScreenplayStore(selector) {
     deleteTask: script.deleteTask,
     reorderTasks: script.reorderTasks,
 
+    // -- Actions (script — AI guide) --
+    setMethodology: script.setMethodology,
+    saveSnapshot: script.saveSnapshot,
+
     // -- Actions (Epps) --
     createPass: script.createPass,
     activatePass: script.activatePass,
@@ -618,6 +647,8 @@ useScreenplayStore.getState = () => {
     updateTask: (id, u) => useScriptStore.getState().updateTask(id, u),
     deleteTask: (id) => useScriptStore.getState().deleteTask(id),
     reorderTasks: (t) => useScriptStore.getState().reorderTasks(t),
+    setMethodology: (id) => useScriptStore.getState().setMethodology(id),
+    saveSnapshot: (data) => useScriptStore.getState().saveSnapshot(data),
     createPass: (t) => useScriptStore.getState().createPass(t),
     activatePass: (id) => useScriptStore.getState().activatePass(id),
     completePass: (id, s) => useScriptStore.getState().completePass(id, s),
