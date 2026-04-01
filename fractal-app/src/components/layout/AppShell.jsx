@@ -1,5 +1,6 @@
-import { useState } from 'react'
+import { useEffect } from 'react'
 import useScreenplayStore from '../../store/screenplayStore'
+import useUIStore from '../../store/uiStore'
 import ScriptTree from './ScriptTree'
 import ZoomBar from './ZoomBar'
 import LensSelector from './LensSelector'
@@ -9,6 +10,7 @@ import FractalCanvas from '../canvas/FractalCanvas'
 import DemoBanner from '../shared/DemoBanner'
 import ProjectLobby from '../../views/ProjectLobby'
 import SceneDrawer from './SceneDrawer'
+import WizardShell from '../wizard/WizardShell'
 import BoardView from '../../views/BoardView'
 import TimelineView from '../../views/TimelineView'
 import OutlineView from '../../views/OutlineView'
@@ -16,6 +18,15 @@ import ColorModeSelector from './ColorModeSelector'
 
 export default function AppShell() {
   const { sidebarOpen, screenplay, activeProjectId, viewType } = useScreenplayStore()
+  const wizardStep = useUIStore(s => s.wizardStep)
+  const setWizardStep = useUIStore(s => s.setWizardStep)
+
+  // Auto-start wizard for fresh uploads (no existing snapshot)
+  useEffect(() => {
+    if (screenplay && !screenplay.snapshot && wizardStep === 0) {
+      setWizardStep(1)
+    }
+  }, [screenplay?.id])
 
   // No active project → show lobby
   if (!activeProjectId || !screenplay) {
@@ -78,6 +89,7 @@ export default function AppShell() {
 
       {/* Scene Slide-Out Drawer — overlays everything */}
       <SceneDrawer />
+      <WizardShell />
     </div>
   )
 }

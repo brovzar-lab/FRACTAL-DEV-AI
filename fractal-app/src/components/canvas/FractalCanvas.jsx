@@ -1,6 +1,8 @@
 import { AnimatePresence, motion } from 'framer-motion'
 import useScreenplayStore, { ZOOM_LEVELS } from '../../store/screenplayStore'
+import useAnalysisStore from '../../store/analysisStore'
 import FullScriptView from '../../views/FullScriptView'
+import SnapshotView from '../../views/SnapshotView'
 import ActView from '../../views/ActView'
 import SequenceView from '../../views/SequenceView'
 import SceneView from '../../views/SceneView'
@@ -31,10 +33,16 @@ const slideVariants = {
 
 export default function FractalCanvas() {
   const { zoom, screenplay } = useScreenplayStore()
+  const snapshotCache = useAnalysisStore(s => s.snapshotCache)
 
   if (!screenplay) return <UploadPrompt />
 
-  const View = views[zoom] || FullScriptView
+  // At zoom 0: prefer SnapshotView when a snapshot exists
+  const hasSnapshot = !!(snapshotCache || screenplay.snapshot)
+
+  const View = zoom === ZOOM_LEVELS.FULL_SCRIPT && hasSnapshot
+    ? SnapshotView
+    : (views[zoom] || FullScriptView)
 
   return (
     <AnimatePresence mode="wait" custom={zoom}>
