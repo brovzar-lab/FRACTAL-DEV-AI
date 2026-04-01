@@ -439,7 +439,7 @@ export async function chatWithGuide(message, context, mode, thread, screenplay) 
     return { content: mockResponses[mode] || mockResponses.director, cardType: null, cardData: null }
   }
 
-  const raw = await callClaude(prompt, 600, true, 30000)
+  const raw = await callClaude(prompt, 1500, true, 30000)
   return { content: raw.trim(), cardType: null, cardData: null }
 }
 

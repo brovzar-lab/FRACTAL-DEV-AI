@@ -6,6 +6,19 @@ import { chatWithGuide } from '../../services/claudeService'
 import ChatMessage from './ChatMessage'
 
 // ZOOM_LEVELS: FULL_SCRIPT=0, ACT=1, SEQUENCE=2, SCENE=3, BEAT=4
+function findUnit(screenplay, unitType, id) {
+  for (const act of (screenplay?.acts || [])) {
+    if (unitType === 'act' && act.id === id) return act
+    for (const seq of (act.sequences || [])) {
+      if (unitType === 'sequence' && seq.id === id) return seq
+      for (const scene of (seq.scenes || [])) {
+        if ((unitType === 'scene') && scene.id === id) return scene
+      }
+    }
+  }
+  return null
+}
+
 function buildCurrentContext(zoom, activeUnitId, screenplay) {
   if (zoom === 0 || !activeUnitId) {
     return { unitId: null, unitType: 'full-script', unitData: null }
@@ -14,17 +27,7 @@ function buildCurrentContext(zoom, activeUnitId, screenplay) {
   const typeMap = { 1: 'act', 2: 'sequence', 3: 'scene', 4: 'scene' }
   const unitType = typeMap[zoom] || 'full-script'
 
-  let unitData = null
-  for (const act of (screenplay?.acts || [])) {
-    if (unitType === 'act' && act.id === activeUnitId) { unitData = act; break }
-    for (const seq of (act.sequences || [])) {
-      if (unitType === 'sequence' && seq.id === activeUnitId) { unitData = seq; break }
-      for (const scene of (seq.scenes || [])) {
-        if (unitType === 'scene' && scene.id === activeUnitId) { unitData = scene; break }
-      }
-    }
-  }
-
+  const unitData = findUnit(screenplay, unitType, activeUnitId)
   return { unitId: activeUnitId, unitType, unitData }
 }
 
@@ -61,7 +64,7 @@ export default function AIGuidePanel() {
         cardData: null,
       })
     }
-  }, []) // run once on mount
+  }, [snapshotCache?.openingMessage])
 
   // Auto-scroll to bottom when messages are added
   useEffect(() => {
