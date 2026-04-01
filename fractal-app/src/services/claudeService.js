@@ -12,6 +12,17 @@ const PROXY_URL = import.meta.env.VITE_CLAUDE_PROXY_URL || null
 const USE_MOCK = !PROXY_URL
 
 // ============================================================
+// METHODOLOGY METADATA — used by generateFullSnapshot
+// ============================================================
+const METHODOLOGY_META = {
+  'story-grid': { label: 'Story Grid',      description: 'Five Commandments at every level, genre obligatory scenes, value shifts' },
+  'weiland':    { label: 'Weiland',         description: 'Character arc Ghost/Lie/Want/Need, arc percentage targets' },
+  'save-cat':   { label: 'Save the Cat',    description: 'Blake Snyder 15 beat positions, B-story, fun and games' },
+  'bmoc':       { label: 'BMOC',            description: 'Beginning/Middle/Obstacle/Climax at act and scene level' },
+  'lyons':      { label: 'Lyons',           description: 'Moral Component, false belief, immoral effect, story vs situation test' },
+}
+
+// ============================================================
 // PARSE SCREENPLAY → STRUCTURED JSON TREE
 // ============================================================
 export async function parseScreenplayWithClaude(rawText, pageCount, title = 'Untitled') {
@@ -291,6 +302,104 @@ Return ONLY the rewritten scene text in proper screenplay format. No explanation
 }
 
 // ============================================================
+// FULL-SCRIPT SNAPSHOT (dashboard AI Guide layer)
+// ============================================================
+
+/**
+ * Serialize screenplay structure into a compact text outline for the prompt.
+ * Deliberately omits full scene text to stay within token limits.
+ */
+function buildScriptOutline(screenplay) {
+  const lines = []
+  for (const act of screenplay.acts) {
+    lines.push(`\nACT: ${act.label} (pp. ${act.pageRange.join('-')}) [${act.diagnostics.status}]`)
+    for (const seq of act.sequences) {
+      lines.push(`  SEQ: ${seq.label}`)
+      for (const scene of seq.scenes) {
+        const status = scene.diagnostics?.status || '?'
+        lines.push(`    SCENE ${scene.id}: ${scene.heading} p.${scene.pageRange[0]}-${scene.pageRange[1]} [${status}] — ${scene.synopsis || ''}`)
+      }
+    }
+  }
+  return lines.join('\n')
+}
+
+/**
+ * Generate a full-script snapshot analysis.
+ * Analyzes the entire screenplay at once through the chosen methodology lens.
+ * Returns a structured snapshot object for the dashboard.
+ *
+ * @param {object} screenplay - The full screenplay object with acts/sequences/scenes
+ * @param {string} methodology - The chosen lens id (e.g. 'story-grid', 'weiland', etc.)
+ * @returns {object} snapshot
+ */
+export async function generateFullSnapshot(screenplay, methodology) {
+  const meta = METHODOLOGY_META[methodology] || METHODOLOGY_META['story-grid']
+  const { label: methodologyLabel, description: methodologyDescription } = meta
+
+  const prompt = `You are a professional screenplay analyst. Analyze this entire screenplay and return a JSON structural snapshot.
+
+SCREENPLAY: ${screenplay.title} (${screenplay.genre}, ${screenplay.pageCount} pages)
+METHODOLOGY: ${methodologyLabel} — ${methodologyDescription}
+
+STRUCTURE:
+${buildScriptOutline(screenplay)}
+
+Return ONLY valid JSON matching this schema:
+{
+  "categories": [
+    { "id": "structure", "status": "pass|warn|fail", "summary": "...", "details": "..." },
+    { "id": "character", "status": "pass|warn|fail", "summary": "...", "details": "..." },
+    { "id": "premise",   "status": "pass|warn|fail", "summary": "...", "details": "..." },
+    { "id": "pacing",    "status": "pass|warn|fail", "summary": "...", "details": "..." },
+    { "id": "dialogue",  "status": "pass|warn|fail", "summary": "...", "details": "..." }
+  ],
+  "priorities": [
+    { "rank": 1, "severity": "fail|warn|info", "title": "...", "detail": "...", "unitId": "...", "unitType": "scene|sequence|act" }
+  ],
+  "healthMap": [
+    { "sequenceId": "...", "status": "pass|warn|fail" }
+  ],
+  "openingMessage": "..."
+}
+
+Rules:
+- priorities: rank the top 5-10 structural problems by severity
+- healthMap: one entry per sequence using its actual id
+- openingMessage: Director mode — name the #1 problem, offer fix options, under 60 words
+- Analyze against the ${methodologyLabel} framework specifically`
+
+  if (USE_MOCK) {
+    await delay(2000)
+    return {
+      categories: [
+        { id: 'structure', status: 'fail', summary: 'Midpoint (p.54) has no value reversal. Act II runs 15 pages over genre target.', details: 'The Story Grid requires a value shift at the midpoint — a moment where the protagonist\'s fortunes reverse. Scene 23 (p.54) reaches its climax beat without delivering this shift, leaving the second half of Act II without structural momentum.' },
+        { id: 'character', status: 'warn', summary: 'Protagonist want ≠ need through Seq 4–5. Arc resolves late.', details: 'The protagonist\'s external want (solve the case) and internal need (accept vulnerability) run in parallel without converging until Act III. The gap should begin closing at the midpoint.' },
+        { id: 'premise',   status: 'pass', summary: 'Strong. Clear stakes, genre promise met, inciting incident lands at p.12.', details: 'The logline is well-constructed and the genre contract (Drama: Life/Death values) is honored. The inciting incident arrives within Story Grid parameters.' },
+        { id: 'pacing',    status: 'fail', summary: 'Seq 4–6 average 3.2 scenes — below genre target of 5.', details: 'Act II runs long and the mid-act sequences are underscened. Each sequence should contain 4-6 scenes to maintain dramatic momentum. Consider adding or splitting scenes in Seq 4 and 5.' },
+        { id: 'dialogue',  status: 'warn', summary: '3 supporting characters have indistinct voice. Exposition heavy in Sc. 4, 7, 12.', details: 'Scenes 4, 7, and 12 carry expository dialogue that should be converted to subtext or dramatized differently. Three supporting characters (the partner, the captain, and the informant) are currently voice-indistinct.' },
+      ],
+      priorities: [
+        { rank: 1, severity: 'fail', title: 'Midpoint reversal missing', detail: 'Scene 23 · p.54 · Five Commandments: Climax beat has no value reversal', unitId: 'sc-023', unitType: 'scene' },
+        { rank: 2, severity: 'fail', title: 'Act II 15 pages over genre target', detail: 'Sequences 4–6 are underscened — compress or cut to tighten Act II', unitId: 'act-2', unitType: 'act' },
+        { rank: 3, severity: 'warn', title: 'Protagonist arc: want/need gap', detail: 'Gap between want (external) and need (internal) should begin closing at midpoint', unitId: 'seq-1-4', unitType: 'sequence' },
+        { rank: 4, severity: 'warn', title: '3 supporting characters: voice differentiation needed', detail: 'Partner, captain, informant are currently voice-indistinct in dialogue', unitId: 'sc-004', unitType: 'scene' },
+        { rank: 5, severity: 'info', title: 'Exposition in Sc. 4, 7, 12', detail: 'Subtext rewrites recommended — dialogue carries information that should be dramatized', unitId: 'sc-004', unitType: 'scene' },
+      ],
+      healthMap: screenplay.acts.flatMap(a => a.sequences.map(s => ({
+        sequenceId: s.id,
+        status: s.scenes.every(sc => sc.diagnostics?.status === 'pass') ? 'pass'
+              : s.scenes.some(sc => sc.diagnostics?.status === 'fail') ? 'fail'
+              : 'warn'
+      }))),
+      openingMessage: `Analysis complete. Biggest structural problem: no value reversal at the midpoint (p.54). Fix this first — the Act II pacing issues downstream will likely self-correct. Want the options?`
+    }
+  }
+
+  return callClaude(prompt, 4000, false, 120000)
+}
+
+// ============================================================
 // PROMPT BUILDERS
 // ============================================================
 
@@ -402,16 +511,26 @@ SCENE: ${scene.heading}`
 // ============================================================
 // HTTP CALLER
 // ============================================================
-async function callClaude(prompt, maxTokens = 1500, rawText = false) {
-  const response = await fetch(PROXY_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ message: prompt, max_tokens: maxTokens })
-  })
-  if (!response.ok) throw new Error(`Claude API error: ${response.status}`)
-  const data = await response.json()
-  if (rawText) return data.content
-  return JSON.parse(data.content.replace(/```json\n?|\n?```/g, '').trim())
+async function callClaude(prompt, maxTokens = 1500, rawText = false, timeout = 30000) {
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), timeout)
+  try {
+    const response = await fetch(PROXY_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      signal: controller.signal,
+      body: JSON.stringify({ message: prompt, max_tokens: maxTokens })
+    })
+    if (!response.ok) throw new Error(`Claude API error: ${response.status}`)
+    const data = await response.json()
+    if (rawText) return data.content
+    return JSON.parse(data.content.replace(/```json\n?|\n?```/g, '').trim())
+  } catch (e) {
+    if (e.name === 'AbortError') throw new Error('Request timed out.')
+    throw e
+  } finally {
+    clearTimeout(timer)
+  }
 }
 
 // ============================================================
