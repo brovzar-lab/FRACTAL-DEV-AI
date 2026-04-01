@@ -350,7 +350,10 @@ const useScriptStore = create(
       }))
     },
 
-    // Clear the guide thread (e.g., on project close)
+    // Clear the guide thread within an open project (resets to empty array).
+    // NOT needed on project close — clearScreenplay() sets screenplay to null,
+    // implicitly discarding guideThread. Use this to restart the conversation
+    // while keeping the project open (e.g. "start fresh" UI action).
     clearGuideThread: () => {
       set(s => ({
         screenplay: s.screenplay
