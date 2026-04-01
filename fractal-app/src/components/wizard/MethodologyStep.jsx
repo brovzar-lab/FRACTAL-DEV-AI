@@ -45,7 +45,7 @@ export default function MethodologyStep() {
               alignItems: 'center',
               gap: '14px',
               padding: '14px 16px',
-              background: selected === lens.id ? 'rgba(27,79,138,0.08)' : 'var(--bg-surface)',
+              background: selected === lens.id ? 'var(--accent-primary-subtle)' : 'var(--bg-surface)',
               border: selected === lens.id ? '2px solid var(--accent-primary)' : '1px solid var(--border-default)',
               borderRadius: 'var(--radius-md)',
               cursor: 'pointer',

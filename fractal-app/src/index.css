@@ -28,6 +28,7 @@
   /* Accent — screenplay structure colors */
   --accent-primary:  #1B4F8A;   /* deep editorial blue */
   --accent-primary-hover: #163F6E;
+  --accent-primary-subtle: rgba(27,79,138,0.08);   /* tinted blue — used for selected state */
   --accent-warm:     #B85C2C;   /* burnt sienna — act markers, warnings */
   --accent-warm-hover: #963F1A;
   --accent-teal:     #2A7D6F;   /* structural success */
@@ -106,6 +107,8 @@
   --status-pass-bg:  rgba(42,125,111,0.15);
   --status-warn-bg:  rgba(192,154,48,0.15);
   --status-fail-bg:  rgba(184,64,64,0.15);
+
+  --accent-primary-subtle: rgba(27,79,138,0.15);
 }
 
 /* === Reset === */
