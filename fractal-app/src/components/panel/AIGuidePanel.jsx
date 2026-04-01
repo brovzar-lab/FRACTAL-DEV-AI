@@ -58,20 +58,17 @@ export default function AIGuidePanel() {
     if (unitType === 'sequence') return unit.label || 'Sequence'
     if (unitType === 'scene') return `${unit.heading || 'Scene'}${unit.pageRange ? ` · p.${unit.pageRange[0]}` : ''}`
     return 'Full Script'
-  }, [zoom, activeUnitId, screenplay])
+  }, [zoom, activeUnitId, screenplay?.acts])
 
-  const handleWhy = async (messageId) => {
-    if (isLoading) return
+  // Shared message sender — used by both handleSend and handleWhy
+  const sendMessage = async (text, mode) => {
     setIsLoading(true)
-
-    const whyText = 'Why does this matter? Explain the principle behind your last suggestion.'
     const currentMessages = screenplay?.guideThread || []
     const context = buildCurrentContext(zoom, activeUnitId, screenplay)
-
     const userMsg = {
       id: `msg-${Date.now()}`,
       role: 'user',
-      content: whyText,
+      content: text,
       timestamp: new Date().toISOString(),
       contextUnitId: activeUnitId,
       contextUnitType: context.unitType,
@@ -79,15 +76,12 @@ export default function AIGuidePanel() {
       cardData: null,
     }
     appendGuideMessage(userMsg)
-
     const thread = [...currentMessages, userMsg].slice(-6).map(m => ({
       role: m.role,
       content: m.content,
     }))
-
     try {
-      // Always use coach mode for Why? explanations
-      const result = await chatWithGuide(whyText, context, 'coach', thread, screenplay)
+      const result = await chatWithGuide(text, context, mode, thread, screenplay)
       appendGuideMessage({
         id: `msg-${Date.now() + 1}`,
         role: 'ai',
@@ -99,10 +93,29 @@ export default function AIGuidePanel() {
         cardData: result.cardData,
       })
     } catch (err) {
-      console.error('[AIGuidePanel] Why? failed:', err)
+      console.error('[AIGuidePanel] Chat failed:', err)
+      appendGuideMessage({
+        id: `msg-err-${Date.now()}`,
+        role: 'ai',
+        content: 'Something went wrong. Please try again.',
+        timestamp: new Date().toISOString(),
+        contextUnitId: null,
+        contextUnitType: null,
+        cardType: null,
+        cardData: null,
+      })
     } finally {
       setIsLoading(false)
     }
+  }
+
+  // Why? always uses coach mode to explain methodology
+  const handleWhy = async () => {
+    if (isLoading) return
+    await sendMessage(
+      'Why does this matter? Explain the principle behind your last suggestion.',
+      'coach'
+    )
   }
 
   // Show opening message from snapshot cache on first mount (no network call)
@@ -131,63 +144,8 @@ export default function AIGuidePanel() {
   const handleSend = async () => {
     const text = input.trim()
     if (!text || isLoading) return
-
     setInput('')
-    setIsLoading(true)
-
-    // Capture current messages BEFORE appending so the thread can include userMsg
-    const currentMessages = screenplay?.guideThread || []
-
-    // Build context BEFORE creating userMsg so contextUnitType is available
-    const context = buildCurrentContext(zoom, activeUnitId, screenplay)
-
-    const userMsg = {
-      id: `msg-${Date.now()}`,
-      role: 'user',
-      content: text,
-      timestamp: new Date().toISOString(),
-      contextUnitId: activeUnitId,
-      contextUnitType: context.unitType,
-      cardType: null,
-      cardData: null,
-    }
-    appendGuideMessage(userMsg)
-
-    // Build thread from pre-append messages + the new userMsg so Claude always
-    // sees the user's current turn as the last message (avoids stale closure)
-    const thread = [...currentMessages, userMsg].slice(-6).map(m => ({
-      role: m.role,
-      content: m.content,
-    }))
-
-    try {
-      const result = await chatWithGuide(text, context, guideMode, thread, screenplay)
-      const aiMsg = {
-        id: `msg-${Date.now() + 1}`,
-        role: 'ai',
-        content: result.content,
-        timestamp: new Date().toISOString(),
-        contextUnitId: activeUnitId,
-        contextUnitType: context.unitType,
-        cardType: result.cardType,
-        cardData: result.cardData,
-      }
-      appendGuideMessage(aiMsg)
-    } catch (err) {
-      console.error('[AIGuidePanel] Chat failed:', err)
-      appendGuideMessage({
-        id: `msg-err-${Date.now()}`,
-        role: 'ai',
-        content: 'Something went wrong. Please try again.',
-        timestamp: new Date().toISOString(),
-        contextUnitId: null,
-        contextUnitType: null,
-        cardType: null,
-        cardData: null,
-      })
-    } finally {
-      setIsLoading(false)
-    }
+    await sendMessage(text, guideMode)
   }
 
   return (
