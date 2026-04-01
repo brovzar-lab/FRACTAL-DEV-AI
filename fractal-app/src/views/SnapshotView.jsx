@@ -18,13 +18,6 @@ const STATUS_COLOR = {
   fail: 'var(--status-fail)',
 }
 
-// Maps status → background CSS variable
-const STATUS_BG = {
-  pass: 'var(--status-pass-bg)',
-  warn: 'var(--status-warn-bg)',
-  fail: 'var(--status-fail-bg)',
-}
-
 export default function SnapshotView() {
   const screenplay = useScreenplayStore(s => s.screenplay)
   const snapshotCache = useAnalysisStore(s => s.snapshotCache)

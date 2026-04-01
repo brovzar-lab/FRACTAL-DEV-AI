@@ -67,7 +67,7 @@ const useUIStore = create(
       setPanelTab: (tab) => set({ panelTab: tab }),
 
       // Wizard step state — controls onboarding wizard overlay
-      // 0 = not started, 1-5 = wizard steps in progress, 6 = complete
+      // wizardStep: 0 = not started, 1-3 = wizard overlay active (steps 1-3), 4+ = wizard complete (no overlay shown)
       // Reset to 0 on project close (not persisted to localStorage)
       wizardStep: 0,
       setWizardStep: (step) => set({ wizardStep: step }),

@@ -445,6 +445,9 @@ function useScreenplayStore(selector) {
           ui.setLens(data.lens || 'story-grid')
           ui.resetUI()
           analysis.clearCache()
+          if (data.screenplay.snapshot) {
+            analysis.setSnapshot(data.screenplay.snapshot)
+          }
           console.log('[Store] Opened project:', data.screenplay.title)
           return true
         }
@@ -597,6 +600,9 @@ useScreenplayStore.getState = () => {
           useUIStore.getState().setLens(data.lens || 'story-grid')
           useUIStore.getState().resetUI()
           useAnalysisStore.getState().clearCache()
+          if (data.screenplay.snapshot) {
+            useAnalysisStore.getState().setSnapshot(data.screenplay.snapshot)
+          }
           return true
         }
         useProjectStore.getState().setLoading(false)
