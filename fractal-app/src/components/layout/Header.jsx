@@ -1,10 +1,11 @@
-import { PanelLeftOpen, PanelLeftClose, Moon, Sun, Upload, ArrowLeft, LayoutGrid, Clock, List, Layers, PanelRight, PanelBottom, PanelLeft, RefreshCw } from 'lucide-react'
+import { PanelLeftOpen, PanelLeftClose, Moon, Sun, Upload, ArrowLeft, LayoutGrid, Clock, List, Layers, PanelRight, PanelBottom, PanelLeft, RefreshCw, BarChart2 } from 'lucide-react'
 import useScreenplayStore from '../../store/screenplayStore'
 import UploadModal from '../upload/UploadModal'
 import { useState } from 'react'
 
 const VIEW_OPTIONS = [
   { id: 'fractal',  label: 'Fractal',  icon: Layers,     short: 'F' },
+  { id: 'snapshot', label: 'Snapshot', icon: BarChart2,   short: 'S' },
   { id: 'board',    label: 'Board',    icon: LayoutGrid,  short: 'B' },
   { id: 'timeline', label: 'Timeline', icon: Clock,       short: 'T' },
   { id: 'outline',  label: 'Outline',  icon: List,        short: 'O' },

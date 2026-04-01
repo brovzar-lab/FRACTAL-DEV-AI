@@ -27,7 +27,7 @@ export const SCENE_STATUSES = ['untouched', 'in-progress', 'revised', 'approved'
 export const COLOR_MODES = ['health', 'status', 'methodology', 'tension']
 
 // View types
-export const VIEW_TYPES = ['fractal', 'board', 'timeline', 'outline']
+export const VIEW_TYPES = ['fractal', 'snapshot', 'board', 'timeline', 'outline']
 
 // === UI Store ===
 const useUIStore = create(

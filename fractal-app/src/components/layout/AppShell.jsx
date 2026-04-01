@@ -14,6 +14,7 @@ import WizardShell from '../wizard/WizardShell'
 import BoardView from '../../views/BoardView'
 import TimelineView from '../../views/TimelineView'
 import OutlineView from '../../views/OutlineView'
+import SnapshotView from '../../views/SnapshotView'
 import ColorModeSelector from './ColorModeSelector'
 
 export default function AppShell() {
@@ -75,6 +76,7 @@ export default function AppShell() {
                 <ColorModeSelector />
               </div>
               <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+                {viewType === 'snapshot' && <SnapshotView />}
                 {viewType === 'board' && <BoardView />}
                 {viewType === 'timeline' && <TimelineView />}
                 {viewType === 'outline' && <OutlineView />}
