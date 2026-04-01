@@ -39,8 +39,8 @@ export default function SnapshotView() {
     try {
       const methodology = screenplay.methodology || 'story-grid'
       const fresh = await generateFullSnapshot(screenplay, methodology)
-      setSnapshot(fresh)
-      saveSnapshot(fresh)
+      saveSnapshot(fresh)   // persist to screenplay.snapshot → Firestore first
+      setSnapshot(fresh)    // then clear stale flag + update in-memory cache
     } catch (err) {
       console.error('[SnapshotView] Re-analyze failed:', err)
     } finally {

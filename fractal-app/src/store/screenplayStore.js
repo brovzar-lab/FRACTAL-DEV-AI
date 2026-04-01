@@ -83,6 +83,7 @@ const useScriptStore = create(
         for (const seq of act.sequences) {
           const scene = seq.scenes.find(sc => sc.id === sceneId)
           if (scene) {
+            const textActuallyChanged = scene.text !== newText
             if (!scene.originalText) scene.originalText = scene.text
             scene.edits.push({ text: newText, savedAt: new Date().toISOString() })
             scene.text = newText
@@ -91,13 +92,15 @@ const useScriptStore = create(
             if (scene.workflowStatus === 'untouched') {
               scene.workflowStatus = 'in-progress'
             }
+            set({ screenplay })
+            // Only mark snapshot stale when text actually changed (not no-op saves)
+            if (textActuallyChanged) {
+              useAnalysisStore.getState().markSnapshotStale()
+            }
             break
           }
         }
       }
-      set({ screenplay })
-      // Mark snapshot stale since content has changed
-      useAnalysisStore.getState().markSnapshotStale()
     },
 
     // Update scene workflow status
