@@ -492,6 +492,10 @@ Scene count: ${seq.scenes?.length || 0}`
 Diagnostic: ${act.diagnostics?.status || 'unknown'} — ${act.diagnostics?.note || ''}`
   }
 
+  if (context.unitType === 'full-script') {
+    return 'Viewing: Full script overview'
+  }
+
   return `Viewing: ${context.unitType} (${context.unitId})`
 }
 
