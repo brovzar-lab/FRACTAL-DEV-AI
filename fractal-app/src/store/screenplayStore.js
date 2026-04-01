@@ -96,6 +96,8 @@ const useScriptStore = create(
         }
       }
       set({ screenplay })
+      // Mark snapshot stale since content has changed
+      useAnalysisStore.getState().markSnapshotStale()
     },
 
     // Update scene workflow status

@@ -1,6 +1,8 @@
+import { useState } from 'react'
 import useScreenplayStore from '../store/screenplayStore'
 import useAnalysisStore from '../store/analysisStore'
 import useUIStore, { LENSES } from '../store/uiStore'
+import { generateFullSnapshot } from '../services/claudeService'
 
 // Maps category id → display label
 const CATEGORY_LABELS = {
@@ -24,9 +26,27 @@ export default function SnapshotView() {
   const snapshotStale = useAnalysisStore(s => s.snapshotStale)
   const drillInto = useScreenplayStore(s => s.drillInto)
   const currentLens = useUIStore(s => s.lens)
+  const [reanalyzing, setReanalyzing] = useState(false)
+  const saveSnapshot = useScreenplayStore(s => s.saveSnapshot)
+  const setSnapshot = useAnalysisStore(s => s.setSnapshot)
 
   // Fallback to screenplay.snapshot if in-memory cache is empty (e.g., page reload)
   const snapshot = snapshotCache || screenplay?.snapshot
+
+  const handleReanalyze = async () => {
+    if (reanalyzing || !screenplay) return
+    setReanalyzing(true)
+    try {
+      const methodology = screenplay.methodology || 'story-grid'
+      const fresh = await generateFullSnapshot(screenplay, methodology)
+      setSnapshot(fresh)
+      saveSnapshot(fresh)
+    } catch (err) {
+      console.error('[SnapshotView] Re-analyze failed:', err)
+    } finally {
+      setReanalyzing(false)
+    }
+  }
 
   if (!snapshot) return null
 
@@ -61,16 +81,41 @@ export default function SnapshotView() {
               New
             </span>
           )}
-          {/* STALE badge */}
+          {/* STALE banner with re-analyze button */}
           {snapshotStale && (
-            <span style={{
-              fontFamily: 'var(--font-ui)', fontSize: '0.6875rem', fontWeight: 700,
-              padding: '2px 7px', borderRadius: 'var(--radius-sm)',
-              background: 'var(--status-warn-bg)', color: 'var(--status-warn)',
-              letterSpacing: '0.06em', textTransform: 'uppercase',
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
             }}>
-              Stale — re-analyze
-            </span>
+              <span style={{
+                fontFamily: 'var(--font-ui)',
+                fontSize: '0.6875rem',
+                fontWeight: 700,
+                padding: '2px 7px',
+                borderRadius: 'var(--radius-sm)',
+                background: 'var(--status-warn-bg)',
+                color: 'var(--status-warn)',
+                letterSpacing: '0.06em',
+                textTransform: 'uppercase',
+              }}>
+                Stale
+              </span>
+              <button
+                className="btn btn-sm"
+                onClick={handleReanalyze}
+                disabled={reanalyzing}
+                style={{
+                  background: 'var(--accent-primary)',
+                  color: 'var(--text-on-accent)',
+                  borderColor: 'var(--accent-primary)',
+                  padding: '2px 10px',
+                  fontSize: '0.6875rem',
+                }}
+              >
+                {reanalyzing ? 'Analyzing…' : 'Re-analyze'}
+              </button>
+            </div>
           )}
         </div>
         <p style={{ fontFamily: 'var(--font-ui)', fontSize: '0.8125rem', color: 'var(--text-muted)' }}>
