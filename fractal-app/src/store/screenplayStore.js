@@ -349,9 +349,9 @@ function enrichScreenplay(screenplay) {
   const sp = JSON.parse(JSON.stringify(screenplay))
 
   // ── NEW: top-level AI guide fields ──
-  if (!sp.methodology) sp.methodology = null           // string | null — chosen lens id e.g. 'story-grid'
-  if (!sp.snapshot) sp.snapshot = null                 // object | null — full-script snapshot from generateFullSnapshot()
-  if (!sp.snapshotGeneratedAt) sp.snapshotGeneratedAt = null  // ISO string | null — timestamp of last snapshot
+  if (sp.methodology == null) sp.methodology = null           // string | null — chosen lens id e.g. 'story-grid'
+  if (sp.snapshot == null) sp.snapshot = null                 // object | null — full-script snapshot from generateFullSnapshot()
+  if (sp.snapshotGeneratedAt == null) sp.snapshotGeneratedAt = null  // ISO string | null — timestamp of last snapshot
 
   for (const act of sp.acts) {
     for (const seq of (act.sequences || [])) {
@@ -623,7 +623,7 @@ useScreenplayStore.getState = () => {
     openSceneDrawer: (id, dir) => useUIStore.getState().openSceneDrawer(id, dir),
     closeSceneDrawer: () => useUIStore.getState().closeSceneDrawer(),
     setSceneDrawerDirection: (d) => useUIStore.getState().setSceneDrawerDirection(d),
-    setWizardStep: () => useUIStore.getState().setWizardStep(...arguments),
+    setWizardStep: (step) => useUIStore.getState().setWizardStep(step),
     drillInto: (type, id) => useUIStore.getState().drillInto(type, id, useScriptStore.getState().screenplay),
     drillOut: (z) => useUIStore.getState().drillOut(z),
     goToUnit: (type, id) => useUIStore.getState().goToUnit(type, id, useScriptStore.getState().screenplay),
