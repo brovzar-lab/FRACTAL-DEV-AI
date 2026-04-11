@@ -12,7 +12,7 @@ const TABS = [
 ]
 
 export default function AIPanel() {
-  const { panelTab, setPanelTab, tasks, eppsPasses, activePassId } = useScreenplayStore()
+  const { panelTab, setPanelTab, tasks, eppsPasses } = useScreenplayStore()
   const openTasks = tasks.filter(t => t.status !== 'done').length
   const activePasses = eppsPasses.filter(p => p.status === 'active').length
 

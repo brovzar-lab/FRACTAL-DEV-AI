@@ -13,6 +13,7 @@ export default function BeatView() {
   const [selectedPos, setSelectedPos] = useState(0)
   const [beatAnalysis, setBeatAnalysis] = useState({})
   const [loading, setLoading] = useState({})
+  const [beatError, setBeatError] = useState(null)
 
   // Find scene via useMemo — no early return before hooks
   const scene = useMemo(() => {
@@ -44,11 +45,16 @@ export default function BeatView() {
     const key = `${scene.id}-${pos}`
     if (beatAnalysis[key]) return
     setLoading(prev => ({ ...prev, [key]: true }))
+    setBeatError(null)
     try {
       const result = await analyzeBeat(scene, segments[pos]?.text, pos / 4)
       setBeatAnalysis(prev => ({ ...prev, [key]: result }))
-    } catch (e) { console.error(e) }
-    finally { setLoading(prev => ({ ...prev, [key]: false })) }
+    } catch (e) {
+      console.error('[BeatView] Analysis failed:', e)
+      setBeatError(e.message || 'Beat analysis failed. Please try again.')
+    } finally {
+      setLoading(prev => ({ ...prev, [key]: false }))
+    }
   }
 
   useEffect(() => {
@@ -189,6 +195,11 @@ export default function BeatView() {
             </div>
 
             {isLoading && <AnalysisLoader text="Analyzing beat…" compact />}
+            {beatError && !isLoading && (
+              <div style={{ padding: '10px 12px', background: 'var(--status-fail-bg)', border: '1px solid rgba(184,64,64,0.3)', borderRadius: 'var(--radius-md)', fontSize: '0.75rem', color: 'var(--status-fail)' }}>
+                ⚠ {beatError}
+              </div>
+            )}
 
             {currentAnalysis && !isLoading && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>

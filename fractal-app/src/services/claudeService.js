@@ -155,11 +155,11 @@ function repairTruncatedJSON(str) {
   str = str.replace(/,?\s*"[^"]*$/, '')
 
   // Count open/close brackets
-  let opens = 0, closesNeeded = []
+  let closesNeeded = []
   for (const ch of str) {
-    if (ch === '{') { opens++; closesNeeded.push('}') }
-    else if (ch === '[') { opens++; closesNeeded.push(']') }
-    else if (ch === '}' || ch === ']') { opens--; closesNeeded.pop() }
+    if (ch === '{') { closesNeeded.push('}') }
+    else if (ch === '[') { closesNeeded.push(']') }
+    else if (ch === '}' || ch === ']') { closesNeeded.pop() }
   }
 
   // Close any remaining open brackets
@@ -219,8 +219,6 @@ function backfillSceneText(screenplay, rawText) {
 // ACT-LEVEL ANALYSIS
 // ============================================================
 export async function analyzeAct(act, lens, screenplay) {
-  const cacheKey = `act-${act.id}-${lens}`
-
   const prompt = buildActPrompt(act, lens, screenplay)
 
   if (USE_MOCK) {
@@ -515,10 +513,24 @@ function buildGuidePrompt(message, context, mode, thread, screenplay) {
     fast: `You are the AI Guide. The writer wants a fast rewrite. Generate a rewritten version of the scene immediately with minimal framing. Respond with ONLY the rewritten scene text in proper screenplay format.`
   }
 
+  const formatRules = `
+
+FORMATTING RULES (critical — follow exactly):
+- Write like you're TALKING to the writer, not writing a report. Short paragraphs (2-3 sentences max per paragraph).
+- Use **bold** for key terms, scene references, and emphasis.
+- Use markdown headers (### Header) to separate distinct sections of your response.
+- When listing options, use a bullet list with bold labels:
+  - **A) Option name** — brief description of what this does
+  - **B) Option name** — brief description of what this does
+- Break up long explanations with line breaks between thoughts. Never write a wall of text.
+- Keep total response under 200 words unless the writer asks for detail.
+- End with a clear question or next step to keep the conversation going.`
+
   const contextBlock = buildContextBlock(context, screenplay)
   const historyBlock = thread.slice(-6).map(m => `${m.role === 'user' ? 'Writer' : 'Guide'}: ${m.content}`).join('\n')
 
   return `${modeInstructions[mode] || modeInstructions.director}
+${mode !== 'fast' ? formatRules : ''}
 
 SCREENPLAY: ${screenplay?.title || 'Untitled'} (${screenplay?.genre || 'Unknown'}, ${screenplay?.pageCount || '?'} pages)
 METHODOLOGY: ${screenplay?.methodology || 'story-grid'}
@@ -532,6 +544,7 @@ ${historyBlock ? `CONVERSATION SO FAR:\n${historyBlock}\n` : ''}
 Writer: ${message}
 Guide:`
 }
+
 
 function buildContextBlock(context) {
   if (!context?.unitId || !context?.unitType) {

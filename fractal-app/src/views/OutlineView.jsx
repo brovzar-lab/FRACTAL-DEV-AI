@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useState } from 'react'
 import { ChevronDown, ChevronRight, CheckCircle, XCircle, AlertTriangle } from 'lucide-react'
 import useScreenplayStore from '../store/screenplayStore'
 import DiagBadge from '../components/shared/DiagBadge'
@@ -12,7 +12,7 @@ const STATUS_DOT_COLORS = {
 }
 
 export default function OutlineView() {
-  const { screenplay, openSceneDrawer, drillInto, setSceneStatus } = useScreenplayStore()
+  const { screenplay, openSceneDrawer } = useScreenplayStore()
   const [expandedActs, setExpandedActs] = useState({})
   const [expandedSeqs, setExpandedSeqs] = useState({})
 
@@ -67,7 +67,7 @@ export default function OutlineView() {
             </div>
 
             {/* Sequences under act */}
-            {actExpanded && act.sequences.map((seq, si) => {
+            {actExpanded && act.sequences.map((seq) => {
               const seqExpanded = expandedSeqs[seq.id] !== false
               return (
                 <div key={seq.id} style={{ marginLeft: 20 }}>
@@ -95,7 +95,7 @@ export default function OutlineView() {
                   </div>
 
                   {/* Scenes under sequence */}
-                  {seqExpanded && seq.scenes.map((sc, sci) => {
+                  {seqExpanded && seq.scenes.map((sc) => {
                     const statusDot = STATUS_DOT_COLORS[sc.workflowStatus] || '#888'
                     const bmoc = sc.diagnostics
 

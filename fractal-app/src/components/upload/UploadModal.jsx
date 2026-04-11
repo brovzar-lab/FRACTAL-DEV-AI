@@ -34,7 +34,7 @@ export default function UploadModal({ onClose, replaceMode = false }) {
       await delay(300)
 
       setStage(1)
-      const { rawText, pageCount, format } = await parseScreenplayFile(file)
+      const { rawText, pageCount } = await parseScreenplayFile(file)
 
       setStage(2)
       const screenplay = await parseScreenplayWithClaude(rawText, pageCount, file.name.replace(/\.[^.]+$/, ''))

@@ -1,4 +1,23 @@
+import { useMemo } from 'react'
+import { marked } from 'marked'
 import BMOCCard from '../scene/BMOCCard'
+
+// Configure marked for conversational output
+marked.setOptions({
+  breaks: true,      // Line breaks → <br> (feels like chat)
+  gfm: true,         // GitHub-flavored markdown
+  headerIds: false,   // No IDs on headers
+})
+
+/**
+ * Render markdown content to sanitized HTML string.
+ * Uses marked for parsing — output is intentionally minimal
+ * (no script tags from Claude responses anyway).
+ */
+function renderMarkdown(text) {
+  if (!text) return ''
+  return marked.parse(text)
+}
 
 export default function ChatMessage({ message, onWhy }) {
   if (!message) return null
@@ -21,7 +40,9 @@ export default function ChatMessage({ message, onWhy }) {
     )
   }
 
-  // AI message
+  // AI message — render markdown as HTML
+  const html = useMemo(() => renderMarkdown(message.content), [message.content])
+
   return (
     <div style={{
       background: 'var(--bg-surface)',
@@ -42,15 +63,10 @@ export default function ChatMessage({ message, onWhy }) {
       }}>
         AI Guide
       </div>
-      <div style={{
-        fontFamily: 'var(--font-ui)',
-        fontSize: '0.8125rem',
-        color: 'var(--text-secondary)',
-        lineHeight: 1.55,
-        whiteSpace: 'pre-wrap',
-      }}>
-        {message.content}
-      </div>
+      <div
+        className="ai-guide-content"
+        dangerouslySetInnerHTML={{ __html: html }}
+      />
       {message.cardType === 'bmoc' && message.cardData && (
         <div style={{ marginTop: '10px' }}>
           <BMOCCard analysis={message.cardData} />

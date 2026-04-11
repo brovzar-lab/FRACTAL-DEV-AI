@@ -4,6 +4,7 @@ import DiagBadge from '../components/shared/DiagBadge'
 import CharacterMap from '../components/analysis/CharacterMap'
 import { ZoomIn, Download, FileText, Copy, Check, Users, Activity, AlertTriangle } from 'lucide-react'
 import { exportToFountain, exportToText, copyToClipboard, downloadFile } from '../services/exporter'
+import { getCardStyle } from '../utils/indexCardUtils'
 
 const ACT_COLORS = [
   { bg: 'rgba(27,79,138,0.08)', border: '#1B4F8A', text: '#1B4F8A' },
@@ -20,7 +21,7 @@ const STATUS_COLORS = {
 }
 
 export default function FullScriptView() {
-  const { screenplay, drillInto, lens } = useScreenplayStore()
+  const { screenplay, drillInto } = useScreenplayStore()
   const [copied, setCopied] = useState(false)
   const [showExport, setShowExport] = useState(false)
   const acts = screenplay.acts
@@ -257,40 +258,35 @@ export default function FullScriptView() {
                     <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 500, paddingLeft: 2 }}>
                       {seq.label}
                     </div>
-                    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                      {seq.scenes.map(sc => (
-                        <button
-                          key={sc.id}
-                          className="notecard"
-                          style={{
-                            '--accent-color': STATUS_COLORS[sc.diagnostics?.status]?.bg || '#999',
-                            padding: '6px 10px',
-                            textAlign: 'left',
-                            background: 'none',
-                            border: 'none',
-                            cursor: 'pointer',
-                            minWidth: 160, maxWidth: 220,
-                            transition: 'box-shadow var(--transition-fast), transform var(--transition-fast)',
-                            background: 'var(--bg-surface)',
-                            borderRadius: 'var(--radius-md)',
-                          }}
-                          onClick={() => drillInto('scene', sc.id)}
-                          onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = 'var(--shadow-raised)' }}
-                          onMouseLeave={e => { e.currentTarget.style.transform = ''; e.currentTarget.style.boxShadow = '' }}
-                        >
-                          <div style={{ fontSize: '0.7rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                            {sc.heading}
-                          </div>
-                          <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>
-                            p.{sc.pageRange[0]}–{sc.pageRange[1]}
-                          </div>
-                          {sc.diagnostics?.notes && (
-                            <div style={{ fontSize: '0.65rem', color: 'var(--accent-warm)', marginTop: 3, lineClamp: 2 }}>
-                              ⚠ {sc.diagnostics.notes.slice(0,60)}…
+                    <div className="card-grid-surface" style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                      {seq.scenes.map(sc => {
+                        const cardStyle = getCardStyle(sc.id)
+                        return (
+                          <button
+                            key={sc.id}
+                            className="index-card"
+                            style={{
+                              ...cardStyle,
+                              borderLeft: `3px solid ${STATUS_COLORS[sc.diagnostics?.status]?.bg || '#999'}`,
+                              textAlign: 'left',
+                              minWidth: 140, maxWidth: 170,
+                            }}
+                            onClick={() => drillInto('scene', sc.id)}
+                          >
+                            <div style={{ fontSize: '0.65rem', fontWeight: 700, color: '#1A1814', marginBottom: 2, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', wordBreak: 'break-word' }}>
+                              {sc.heading}
                             </div>
-                          )}
-                        </button>
-                      ))}
+                            <div style={{ fontSize: '0.55rem', color: '#635B52' }}>
+                              p.{sc.pageRange[0]}–{sc.pageRange[1]}
+                            </div>
+                            {sc.diagnostics?.notes && (
+                              <div style={{ fontSize: '0.55rem', color: '#B85C2C', marginTop: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                ⚠ {sc.diagnostics.notes.slice(0,50)}…
+                              </div>
+                            )}
+                          </button>
+                        )
+                      })}
                     </div>
                   </div>
                 ))}
@@ -314,15 +310,23 @@ export default function FullScriptView() {
         </div>
         <div style={{ padding: 16 }}>
           {/* Scene health heatmap */}
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3, marginBottom: 16 }}>
-            {allScenes.map((sc, i) => {
+          <div
+            style={{ display: 'flex', flexWrap: 'wrap', gap: 3, marginBottom: 16 }}
+            role="list"
+            aria-label="Scene health heatmap"
+          >
+            {allScenes.map((sc) => {
               const status = sc.diagnostics?.status || 'pass'
               const bgColor = status === 'pass' ? '#2A7D6F' : status === 'warn' ? '#C09A30' : '#B84040'
               return (
                 <div
                   key={sc.id}
+                  role="button"
+                  tabIndex={0}
                   title={`${sc.heading} — ${status.toUpperCase()}`}
+                  aria-label={`${sc.heading}: ${status}`}
                   onClick={() => drillInto('scene', sc.id)}
+                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); drillInto('scene', sc.id) } }}
                   style={{
                     width: 16, height: 16, borderRadius: 2,
                     background: bgColor,

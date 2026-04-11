@@ -13,12 +13,13 @@ import { analyzeScene } from '../services/claudeService'
 import { copyToClipboard, sceneToFountain } from '../services/exporter'
 
 export default function SceneView() {
-  const { screenplay, activeUnitId, lens, drillInto, updateSceneText, setPanelTab, cacheAnalysis, analysisCache } = useScreenplayStore()
+  const { screenplay, activeUnitId, lens, drillInto, updateSceneText, cacheAnalysis, analysisCache } = useScreenplayStore()
   const [analysis, setAnalysis] = useState(null)
   const [loading, setLoading] = useState(false)
   const [saved, setSaved] = useState(true)
   const [showDiff, setShowDiff] = useState(false)
   const [copied, setCopied] = useState(false)
+  const [analysisError, setAnalysisError] = useState(null)
 
   // Find scene via useMemo — no early return before hooks
   const scene = useMemo(() => {
@@ -52,16 +53,30 @@ export default function SceneView() {
     }
   }, [scene?.id])
 
+  // Read from cache before the effect to avoid calling setState synchronously inside useEffect
+  const cachedAnalysis = cacheKey ? analysisCache[cacheKey] ?? null : null
+
   // Load analysis
   useEffect(() => {
-    if (!scene || !cacheKey) return
-    if (analysisCache[cacheKey]) { setAnalysis(analysisCache[cacheKey]); return }
+    if (!scene || !cacheKey || cachedAnalysis) return
+    const controller = new AbortController()
     setLoading(true)
+    setAnalysisError(null)
     analyzeScene(scene, lens)
-      .then(r => { setAnalysis(r); cacheAnalysis(cacheKey, r) })
-      .catch(console.error)
-      .finally(() => setLoading(false))
+      .then(r => {
+        if (controller.signal.aborted) return
+        setAnalysis(r); cacheAnalysis(cacheKey, r)
+      })
+      .catch(err => {
+        if (controller.signal.aborted) return
+        console.error('[SceneView] Analysis failed:', err)
+        setAnalysisError(err.message || 'Analysis failed. Please try again.')
+      })
+      .finally(() => { if (!controller.signal.aborted) setLoading(false) })
+    return () => controller.abort()
   }, [cacheKey])
+
+  const displayAnalysis = cachedAnalysis ?? analysis
 
   const handleSave = useCallback(() => {
     if (!editor || !scene) return
@@ -91,10 +106,10 @@ export default function SceneView() {
   if (!scene) return null
 
   const bmocItems = [
-    { key: 'B', label: 'Beginning', ok: analysis?.bmoc?.beginning?.present ?? scene.diagnostics?.bPresent },
-    { key: 'M', label: 'Middle',    ok: analysis?.bmoc?.middle?.present    ?? scene.diagnostics?.mPresent },
-    { key: 'O', label: 'Obstacle',  ok: analysis?.bmoc?.obstacle?.present  ?? scene.diagnostics?.oPresent },
-    { key: 'C', label: 'Climax',    ok: analysis?.bmoc?.climax?.present    ?? scene.diagnostics?.cPresent },
+    { key: 'B', label: 'Beginning', ok: displayAnalysis?.bmoc?.beginning?.present ?? scene.diagnostics?.bPresent },
+    { key: 'M', label: 'Middle',    ok: displayAnalysis?.bmoc?.middle?.present    ?? scene.diagnostics?.mPresent },
+    { key: 'O', label: 'Obstacle',  ok: displayAnalysis?.bmoc?.obstacle?.present  ?? scene.diagnostics?.oPresent },
+    { key: 'C', label: 'Climax',    ok: displayAnalysis?.bmoc?.climax?.present    ?? scene.diagnostics?.cPresent },
   ]
 
   return (
@@ -255,18 +270,23 @@ export default function SceneView() {
           flexShrink: 0
         }}>
           {loading && <AnalysisLoader text="Analyzing…" compact />}
-          {analysis && !loading && (
-            <BMOCCard analysis={analysis} onCreateTask={(desc) => {
+          {analysisError && (
+            <div style={{ padding: '10px 12px', background: 'var(--status-fail-bg)', border: '1px solid rgba(184,64,64,0.3)', borderRadius: 'var(--radius-md)', fontSize: '0.75rem', color: 'var(--status-fail)' }}>
+              ⚠ {analysisError}
+            </div>
+          )}
+          {displayAnalysis && !loading && (
+            <BMOCCard analysis={displayAnalysis} onCreateTask={(desc) => {
               useScreenplayStore.getState().addTask({
                 priority: 'P1', status: 'open',
                 level: 'scene', linkedId: scene.id,
                 title: `Fix: ${scene.heading}`,
                 description: desc,
               })
-              setPanelTab('tasks')
+              useScreenplayStore.getState().setPanelTab('tasks')
             }} />
           )}
-          {!analysis && !loading && (
+          {!displayAnalysis && !loading && !analysisError && (
             <div style={{ color: 'var(--text-muted)', fontSize: '0.8rem', textAlign: 'center', padding: 20 }}>
               BMOC analysis will appear here
             </div>

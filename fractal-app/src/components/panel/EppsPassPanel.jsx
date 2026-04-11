@@ -27,9 +27,9 @@ const STATUS_CONFIG = {
 
 export default function EppsPassPanel() {
   const {
-    eppsPasses, activePassId, tasks, screenplay,
+    eppsPasses, tasks, screenplay,
     createPass, activatePass, completePass, deletePass, updatePass,
-    setLens, setPanelTab
+    setLens
   } = useScreenplayStore()
 
   const [showAdd, setShowAdd] = useState(false)
@@ -209,13 +209,12 @@ export default function EppsPassPanel() {
 
 function PassCard({
   pass, expanded, onToggle, tasks, allScenes,
-  onActivate, onComplete, onDelete, onUpdate, onFocusLens,
+  onActivate, onComplete, onDelete, _onUpdate, onFocusLens,
   isActive, isDone,
 }) {
   const methColor = METHODOLOGY_COLORS[pass.methodology] || '#888'
   const statusCfg = STATUS_CONFIG[pass.status]
   const StatusIcon = statusCfg.icon
-  const scopeCount = pass.scopeSceneIds?.length || allScenes.length
 
   return (
     <div style={{

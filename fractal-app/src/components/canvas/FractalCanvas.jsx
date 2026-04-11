@@ -1,11 +1,15 @@
+import { lazy, Suspense } from 'react'
+// eslint-disable-next-line no-unused-vars
 import { AnimatePresence, motion } from 'framer-motion'
 import useScreenplayStore, { ZOOM_LEVELS } from '../../store/screenplayStore'
-import FullScriptView from '../../views/FullScriptView'
-import ActView from '../../views/ActView'
-import SequenceView from '../../views/SequenceView'
-import SceneView from '../../views/SceneView'
-import BeatView from '../../views/BeatView'
 import UploadPrompt from '../upload/UploadPrompt'
+
+// Lazy-load views — each becomes its own chunk, only parsed when first visited
+const FullScriptView = lazy(() => import('../../views/FullScriptView'))
+const ActView        = lazy(() => import('../../views/ActView'))
+const SequenceView   = lazy(() => import('../../views/SequenceView'))
+const SceneView      = lazy(() => import('../../views/SceneView'))
+const BeatView       = lazy(() => import('../../views/BeatView'))
 
 const views = {
   [ZOOM_LEVELS.FULL_SCRIPT]: FullScriptView,
@@ -48,7 +52,13 @@ export default function FractalCanvas() {
         transition={{ duration: 0.28, ease: [0.4, 0, 0.2, 1] }}
         style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}
       >
-        <View />
+        <Suspense fallback={
+          <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', fontSize: '0.8rem' }}>
+            Loading…
+          </div>
+        }>
+          <View />
+        </Suspense>
       </motion.div>
     </AnimatePresence>
   )

@@ -15,12 +15,11 @@
  */
 
 import { create } from 'zustand'
-import { persist } from 'zustand/middleware'
 import { useMemo } from 'react'
 import useProjectStore, { createDemoScreenplay, DEMO_TASKS } from './projectStore'
 import useUIStore, { ZOOM_LEVELS, ZOOM_LABELS, LENSES, SCENE_STATUSES, COLOR_MODES, VIEW_TYPES } from './uiStore'
 import useAnalysisStore from './analysisStore'
-import { saveScreenplayDebounced } from '../services/firestoreSync'
+import { saveScreenplayDebounced, loadScreenplay } from '../services/firestoreSync'
 
 // Re-export constants for backward compatibility
 export { ZOOM_LEVELS, ZOOM_LABELS, LENSES, SCENE_STATUSES, COLOR_MODES, VIEW_TYPES }
@@ -78,7 +77,7 @@ const useScriptStore = create(
     // Update scene text with auto-save changelog session
     updateSceneText: (sceneId, newText) => {
       const s = get()
-      const screenplay = JSON.parse(JSON.stringify(s.screenplay))
+      const screenplay = structuredClone(s.screenplay)
       for (const act of screenplay.acts) {
         for (const seq of act.sequences) {
           const scene = seq.scenes.find(sc => sc.id === sceneId)
@@ -106,7 +105,7 @@ const useScriptStore = create(
     // Update scene workflow status
     setSceneStatus: (sceneId, status) => {
       const s = get()
-      const screenplay = JSON.parse(JSON.stringify(s.screenplay))
+      const screenplay = structuredClone(s.screenplay)
       for (const act of screenplay.acts) {
         for (const seq of act.sequences) {
           const scene = seq.scenes.find(sc => sc.id === sceneId)
@@ -122,7 +121,7 @@ const useScriptStore = create(
     // Dismiss an AI flag for a scene
     dismissFlag: (sceneId, flagType) => {
       const s = get()
-      const screenplay = JSON.parse(JSON.stringify(s.screenplay))
+      const screenplay = structuredClone(s.screenplay)
       for (const act of screenplay.acts) {
         for (const seq of act.sequences) {
           const scene = seq.scenes.find(sc => sc.id === sceneId)
@@ -141,7 +140,7 @@ const useScriptStore = create(
     // Un-dismiss a flag
     undismissFlag: (sceneId, flagType) => {
       const s = get()
-      const screenplay = JSON.parse(JSON.stringify(s.screenplay))
+      const screenplay = structuredClone(s.screenplay)
       for (const act of screenplay.acts) {
         for (const seq of act.sequences) {
           const scene = seq.scenes.find(sc => sc.id === sceneId)
@@ -157,7 +156,7 @@ const useScriptStore = create(
     // Session-based changelog: start a new session when scene is opened
     startEditSession: (sceneId) => {
       const s = get()
-      const screenplay = JSON.parse(JSON.stringify(s.screenplay))
+      const screenplay = structuredClone(s.screenplay)
       for (const act of screenplay.acts) {
         for (const seq of act.sequences) {
           const scene = seq.scenes.find(sc => sc.id === sceneId)
@@ -180,7 +179,7 @@ const useScriptStore = create(
     // Finalize edit session when navigating away
     endEditSession: (sceneId) => {
       const s = get()
-      const screenplay = JSON.parse(JSON.stringify(s.screenplay))
+      const screenplay = structuredClone(s.screenplay)
       for (const act of screenplay.acts) {
         for (const seq of act.sequences) {
           const scene = seq.scenes.find(sc => sc.id === sceneId)
@@ -204,7 +203,7 @@ const useScriptStore = create(
     // Move scene to different sequence (DND support)
     moveScene: (sceneId, fromSeqId, toSeqId, newIndex) => {
       const s = get()
-      const screenplay = JSON.parse(JSON.stringify(s.screenplay))
+      const screenplay = structuredClone(s.screenplay)
       let movedScene = null
 
       // Remove from source
@@ -243,7 +242,7 @@ const useScriptStore = create(
     // Reorder scenes within a sequence
     reorderScenes: (seqId, sceneIds) => {
       const s = get()
-      const screenplay = JSON.parse(JSON.stringify(s.screenplay))
+      const screenplay = structuredClone(s.screenplay)
       for (const act of screenplay.acts) {
         for (const seq of act.sequences) {
           if (seq.id === seqId) {
@@ -269,7 +268,7 @@ const useScriptStore = create(
     // === Notes ===
     addNote: (sceneId, note) => {
       const s = get()
-      const screenplay = JSON.parse(JSON.stringify(s.screenplay))
+      const screenplay = structuredClone(s.screenplay)
       for (const act of screenplay.acts) {
         for (const seq of act.sequences) {
           const scene = seq.scenes.find(sc => sc.id === sceneId)
@@ -372,7 +371,7 @@ const useScriptStore = create(
 // Ensure all scenes have new data model fields
 function enrichScreenplay(screenplay) {
   if (!screenplay?.acts) return screenplay
-  const sp = JSON.parse(JSON.stringify(screenplay))
+  const sp = structuredClone(screenplay)
 
   // ── NEW: top-level AI guide fields ──
   if (sp.methodology == null) sp.methodology = null           // string | null — chosen lens id e.g. 'story-grid'
@@ -463,7 +462,6 @@ function useScreenplayStore(selector) {
     openProject: async (projectId) => {
       project.setLoading(true)
       try {
-        const { loadScreenplay } = await import('../services/firestoreSync')
         const data = await loadScreenplay(projectId)
         if (data?.screenplay) {
           project.openProject(projectId, null)
@@ -624,7 +622,6 @@ useScreenplayStore.getState = () => {
     openProject: async (projectId) => {
       useProjectStore.getState().setLoading(true)
       try {
-        const { loadScreenplay } = await import('../services/firestoreSync')
         const data = await loadScreenplay(projectId)
         if (data?.screenplay) {
           useProjectStore.setState({ activeProjectId: projectId, isLoading: false })
@@ -639,7 +636,7 @@ useScreenplayStore.getState = () => {
         }
         useProjectStore.getState().setLoading(false)
         return false
-      } catch (e) {
+      } catch {
         useProjectStore.getState().setLoading(false)
         return false
       }

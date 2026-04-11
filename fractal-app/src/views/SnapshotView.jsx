@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
+import { marked } from 'marked'
 import useScreenplayStore from '../store/screenplayStore'
 import useAnalysisStore from '../store/analysisStore'
 import useUIStore, { LENSES } from '../store/uiStore'
@@ -230,7 +231,9 @@ export default function SnapshotView() {
       )}
 
       {/* AI Guide opening message banner */}
-      {snapshot.openingMessage && (
+      {snapshot.openingMessage && (() => {
+        const openingHtml = marked.parse(snapshot.openingMessage)
+        return (
         <div style={{
           background: 'var(--bg-surface)',
           border: '1px solid var(--border-default)',
@@ -246,11 +249,13 @@ export default function SnapshotView() {
           }}>
             AI Guide
           </div>
-          <p style={{ fontFamily: 'var(--font-ui)', fontSize: '0.8125rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
-            {snapshot.openingMessage}
-          </p>
+          <div
+            className="ai-guide-content"
+            dangerouslySetInnerHTML={{ __html: openingHtml }}
+          />
         </div>
-      )}
+        )
+      })()}
     </div>
   )
 }

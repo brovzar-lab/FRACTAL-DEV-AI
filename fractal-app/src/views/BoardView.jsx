@@ -1,10 +1,11 @@
 import { useMemo } from 'react'
 import { DndContext, closestCenter, PointerSensor, useSensor, useSensors } from '@dnd-kit/core'
-import { SortableContext, horizontalListSortingStrategy, verticalListSortingStrategy, useSortable, arrayMove } from '@dnd-kit/sortable'
+import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { GripVertical, CheckCircle, XCircle, AlertTriangle } from 'lucide-react'
 import useScreenplayStore from '../store/screenplayStore'
 import DiagBadge from '../components/shared/DiagBadge'
+import { getCardStyle } from '../utils/indexCardUtils'
 
 const SEQ_COLORS = [
   { bg: 'rgba(27,79,138,0.06)', border: '#1B4F8A', header: 'rgba(27,79,138,0.10)' },
@@ -97,7 +98,7 @@ export default function BoardView() {
               </div>
 
               {/* Cards */}
-              <div className="scroll-y" style={{ flex: 1, padding: 8, display: 'flex', flexDirection: 'column', gap: 6, overflow: 'auto' }}>
+              <div className="scroll-y card-grid-surface" style={{ flex: 1, padding: 8, display: 'flex', flexDirection: 'column', gap: 6, overflow: 'auto' }}>
                 <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
                   <SortableContext items={seq.scenes.map(s => s.id)} strategy={verticalListSortingStrategy}>
                     {seq.scenes.map(sc => (
@@ -117,7 +118,8 @@ export default function BoardView() {
 function SortableCard({ scene, seqColor, colorMode, onOpen }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: scene.id })
 
-  const style = {
+  // DnD transform on wrapper — card rotation/skew on inner div (no conflict)
+  const wrapperStyle = {
     transform: CSS.Transform.toString(transform),
     transition,
     opacity: isDragging ? 0.5 : 1,
@@ -125,12 +127,14 @@ function SortableCard({ scene, seqColor, colorMode, onOpen }) {
   }
 
   // Card border color depends on color mode
-  let borderColor = seqColor.border // default: sequence color
+  let borderColor = seqColor.border
   if (colorMode === 'health') {
     borderColor = STATUS_COLORS[scene.diagnostics?.status] || '#999'
   } else if (colorMode === 'status') {
     borderColor = STATUS_WORKFLOW_COLORS[scene.workflowStatus] || '#888'
   }
+
+  const cardStyle = getCardStyle(scene.id)
 
   const bmocItems = [
     { key: 'B', ok: scene.diagnostics?.bPresent },
@@ -140,20 +144,20 @@ function SortableCard({ scene, seqColor, colorMode, onOpen }) {
   ]
 
   return (
-    <div ref={setNodeRef} style={style}>
+    <div ref={setNodeRef} style={wrapperStyle}>
       <div
-        className="card"
+        className="index-card"
         onClick={onOpen}
+        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOpen() } }}
+        role="button"
+        tabIndex={0}
+        aria-label={`Scene: ${scene.heading}, pages ${scene.pageRange[0]} to ${scene.pageRange[1]}`}
         style={{
-          cursor: 'pointer',
-          borderLeftWidth: 3,
-          borderLeftColor: borderColor,
-          transition: 'box-shadow var(--transition-fast), transform var(--transition-fast)',
+          ...cardStyle,
+          borderLeft: `3px solid ${borderColor}`,
           padding: 0,
           overflow: 'hidden',
         }}
-        onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = 'var(--shadow-raised)' }}
-        onMouseLeave={e => { e.currentTarget.style.transform = ''; e.currentTarget.style.boxShadow = '' }}
       >
         <div style={{ display: 'flex', alignItems: 'stretch' }}>
           {/* Drag handle */}
@@ -162,36 +166,36 @@ function SortableCard({ scene, seqColor, colorMode, onOpen }) {
             {...listeners}
             onClick={e => e.stopPropagation()}
             style={{
-              padding: '0 6px', display: 'flex', alignItems: 'center',
-              color: 'var(--text-muted)', cursor: 'grab',
-              borderRight: '1px solid var(--border-default)',
+              padding: '0 5px', display: 'flex', alignItems: 'center',
+              color: '#635B52', cursor: 'grab',
+              borderRight: '1px solid rgba(0,0,0,0.08)',
               flexShrink: 0, touchAction: 'none',
             }}
           >
-            <GripVertical size={12} />
+            <GripVertical size={10} />
           </div>
 
-          <div style={{ flex: 1, padding: '8px 10px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 3 }}>
-              <div style={{ fontWeight: 600, fontSize: '0.75rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
+          <div style={{ flex: 1, padding: '6px 8px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 2 }}>
+              <div style={{ fontWeight: 700, fontSize: '0.65rem', overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', wordBreak: 'break-word', flex: 1, color: '#1A1814' }}>
                 {scene.heading}
               </div>
               <DiagBadge status={scene.diagnostics?.status} />
             </div>
 
-            <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', marginBottom: 4 }}>
+            <div style={{ fontSize: '0.55rem', color: '#635B52', marginBottom: 3 }}>
               p.{scene.pageRange[0]}–{scene.pageRange[1]}
             </div>
 
             {/* BMOC dots */}
-            <div style={{ display: 'flex', gap: 3 }}>
+            <div style={{ display: 'flex', gap: 2 }} role="group" aria-label="BMOC structure">
               {bmocItems.map(item => (
-                <div key={item.key} style={{
-                  width: 16, height: 16, borderRadius: 2,
+                <div key={item.key} title={`${item.key}: ${item.ok ? 'Present' : 'Missing'}`} aria-label={`${item.key} ${item.ok ? 'present' : 'missing'}`} style={{
+                  width: 12, height: 12, borderRadius: 1,
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  background: item.ok ? 'var(--status-pass-bg)' : 'var(--status-fail-bg)',
-                  fontSize: '0.55rem', fontWeight: 700,
-                  color: item.ok ? 'var(--status-pass)' : 'var(--status-fail)',
+                  background: item.ok ? '#2A7D6F' : '#B84040',
+                  fontSize: '0.45rem', fontWeight: 700,
+                  color: '#fff',
                 }}>
                   {item.key}
                 </div>
@@ -200,9 +204,9 @@ function SortableCard({ scene, seqColor, colorMode, onOpen }) {
 
             {/* Warning note */}
             {scene.diagnostics?.notes && (
-              <div style={{ marginTop: 4, fontSize: '0.6rem', color: 'var(--accent-warm)', display: 'flex', gap: 3, alignItems: 'flex-start' }}>
-                <AlertTriangle size={9} style={{ flexShrink: 0, marginTop: 1 }} />
-                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
+              <div style={{ marginTop: 3, fontSize: '0.5rem', color: '#B85C2C', display: 'flex', gap: 2, alignItems: 'flex-start' }}>
+                <AlertTriangle size={8} style={{ flexShrink: 0, marginTop: 1 }} />
+                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {scene.diagnostics.notes}
                 </span>
               </div>

@@ -7,12 +7,14 @@ import useScreenplayStore from '../store/screenplayStore'
 import DiagBadge from '../components/shared/DiagBadge'
 import AnalysisLoader from '../components/shared/AnalysisLoader'
 import { analyzeSequence } from '../services/claudeService'
+import { getCardStyle } from '../utils/indexCardUtils'
 
 export default function SequenceView() {
   const { screenplay, activeUnitId, lens, drillInto, cacheAnalysis, analysisCache } = useScreenplayStore()
   const [analysis, setAnalysis] = useState(null)
   const [loading, setLoading] = useState(false)
   const [scenes, setScenes] = useState([])
+  const [analysisError, setAnalysisError] = useState(null)
 
   // Find the sequence — MUST be before hooks but NOT cause early return before hooks
   const { seq, parentAct } = useMemo(() => {
@@ -29,15 +31,29 @@ export default function SequenceView() {
     if (seq) setScenes([...seq.scenes])
   }, [seq?.id])
 
+  // Read from cache before the effect to avoid calling setState synchronously inside useEffect
+  const cachedAnalysis = cacheKey ? analysisCache[cacheKey] ?? null : null
+
   useEffect(() => {
-    if (!seq || !cacheKey) return
-    if (analysisCache[cacheKey]) { setAnalysis(analysisCache[cacheKey]); return }
+    if (!seq || !cacheKey || cachedAnalysis) return
+    const controller = new AbortController()
     setLoading(true)
+    setAnalysisError(null)
     analyzeSequence(seq, parentAct, lens)
-      .then(r => { setAnalysis(r); cacheAnalysis(cacheKey, r) })
-      .catch(console.error)
-      .finally(() => setLoading(false))
+      .then(r => {
+        if (controller.signal.aborted) return
+        setAnalysis(r); cacheAnalysis(cacheKey, r)
+      })
+      .catch(err => {
+        if (controller.signal.aborted) return
+        console.error('[SequenceView] Analysis failed:', err)
+        setAnalysisError(err.message || 'Analysis failed. Please try again.')
+      })
+      .finally(() => { if (!controller.signal.aborted) setLoading(false) })
+    return () => controller.abort()
   }, [cacheKey])
+
+  const displayAnalysis = cachedAnalysis ?? analysis
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }))
 
@@ -66,29 +82,41 @@ export default function SequenceView() {
 
       {/* AI Analysis */}
       {loading && <AnalysisLoader text="Analyzing sequence…" />}
-      {analysis && !loading && (
+      {analysisError && (
+        <div style={{
+          padding: '10px 14px',
+          background: 'var(--status-fail-bg)',
+          border: '1px solid rgba(184,64,64,0.3)',
+          borderRadius: 'var(--radius-md)',
+          fontSize: '0.8rem',
+          color: 'var(--status-fail)',
+        }}>
+          ⚠ {analysisError}
+        </div>
+      )}
+      {displayAnalysis && !loading && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           <div className="card" style={{ padding: 14 }}>
             <div style={{ fontSize: '0.7rem', fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 6 }}>
               Sequence Question
             </div>
             <div style={{ fontFamily: 'var(--font-editorial)', fontSize: '0.95rem', fontStyle: 'italic', color: 'var(--text-primary)', marginBottom: 6 }}>
-              "{analysis.sequenceQuestion}"
+              "{displayAnalysis.sequenceQuestion}"
             </div>
             <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
               <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Resolution:</span>
-              <DiagBadge status={analysis.answer === 'pass' ? 'pass' : analysis.answer === 'fail' ? 'fail' : 'warn'} 
-                        label={analysis.answer?.toUpperCase()} />
+              <DiagBadge status={displayAnalysis.answer === 'pass' ? 'pass' : displayAnalysis.answer === 'fail' ? 'fail' : 'warn'} 
+                        label={displayAnalysis.answer?.toUpperCase()} />
             </div>
           </div>
-          {analysis.recommendation && (
+          {displayAnalysis.recommendation && (
             <div style={{
               padding: '10px 14px', background: 'var(--status-warn-bg)',
               borderRadius: 'var(--radius-md)', border: '1px solid var(--border-default)',
               fontSize: '0.8rem', color: 'var(--text-secondary)', fontStyle: 'italic'
             }}>
               <span style={{ fontWeight: 600, color: '#8A6E1F' }}>→ </span>
-              {analysis.recommendation}
+              {displayAnalysis.recommendation}
             </div>
           )}
         </div>
@@ -102,7 +130,7 @@ export default function SequenceView() {
 
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
           <SortableContext items={scenes.map(s => s.id)} strategy={verticalListSortingStrategy}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <div className="card-grid-surface" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               {scenes.map((sc, idx) => (
                 <SortableSceneCard key={sc.id} scene={sc} index={idx} onOpen={() => drillInto('scene', sc.id)} />
               ))}
@@ -117,12 +145,15 @@ export default function SequenceView() {
 function SortableSceneCard({ scene, index, onOpen }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: scene.id })
 
-  const style = {
+  // DnD transform on wrapper — card rotation/skew on inner div
+  const wrapperStyle = {
     transform: CSS.Transform.toString(transform),
     transition,
     opacity: isDragging ? 0.5 : 1,
     zIndex: isDragging ? 10 : 1,
   }
+
+  const cardStyle = getCardStyle(scene.id)
 
   const bmoc = scene.diagnostics
   const bmocItems = [
@@ -133,15 +164,14 @@ function SortableSceneCard({ scene, index, onOpen }) {
   ]
 
   return (
-    <div ref={setNodeRef} style={style}>
+    <div ref={setNodeRef} style={wrapperStyle}>
       <div
-        className="card"
+        className="index-card"
         style={{
+          ...cardStyle,
           display: 'flex', alignItems: 'stretch',
-          borderLeftWidth: 3,
-          borderLeftColor: { pass: '#2A7D6F', warn: '#C09A30', fail: '#B84040' }[bmoc?.status] || '#999',
-          transition: 'box-shadow var(--transition-fast)',
-          cursor: 'default',
+          borderLeft: `3px solid ${{ pass: '#2A7D6F', warn: '#C09A30', fail: '#B84040' }[bmoc?.status] || '#999'}`,
+          padding: 0,
         }}
       >
         {/* Drag handle */}
@@ -149,80 +179,77 @@ function SortableSceneCard({ scene, index, onOpen }) {
           {...attributes}
           {...listeners}
           style={{
-            padding: '0 8px',
+            padding: '0 6px',
             display: 'flex', alignItems: 'center',
-            color: 'var(--text-muted)',
+            color: '#635B52',
             cursor: 'grab',
-            borderRight: '1px solid var(--border-default)',
+            borderRight: '1px solid rgba(0,0,0,0.08)',
             flexShrink: 0,
             touchAction: 'none',
           }}
         >
-          <GripVertical size={14} />
+          <GripVertical size={12} />
         </div>
 
         {/* Content */}
-        <div style={{ flex: 1, padding: '12px 14px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
+        <div style={{ flex: 1, padding: '8px 10px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 4 }}>
             <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 2 }}>
-                <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', fontWeight: 600 }}>#{index + 1}</span>
-                <span style={{ fontWeight: 600, fontSize: '0.875rem' }}>{scene.heading}</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
+                <span style={{ fontSize: '0.55rem', color: '#635B52', fontWeight: 600 }}>#{index + 1}</span>
+                <span style={{ fontWeight: 700, fontSize: '0.7rem', color: '#1A1814' }}>{scene.heading}</span>
                 <DiagBadge status={bmoc?.status} />
               </div>
-              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+              <div style={{ fontSize: '0.6rem', color: '#635B52' }}>
                 Pages {scene.pageRange[0]}–{scene.pageRange[1]} · {scene.characters?.join(', ')}
               </div>
             </div>
             <button className="btn btn-sm btn-ghost" onClick={onOpen} style={{ gap: 4, flexShrink: 0 }}>
-              <ZoomIn size={12} />
+              <ZoomIn size={10} />
               Open
             </button>
           </div>
 
           {/* Synopsis */}
           {scene.synopsis && (
-            <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: 8, fontStyle: 'italic' }}>
+            <div style={{ fontSize: '0.65rem', color: '#4A4540', marginBottom: 6, fontStyle: 'italic' }}>
               {scene.synopsis}
             </div>
           )}
 
           {/* BMOC indicators */}
-          <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+          <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
             {bmocItems.map(item => (
               <div key={item.key} style={{
-                display: 'flex', alignItems: 'center', gap: 3,
-                padding: '2px 7px',
-                borderRadius: 4,
-                background: item.ok ? 'var(--status-pass-bg)' : 'var(--status-fail-bg)',
-                border: '1px solid',
-                borderColor: item.ok ? 'rgba(42,125,111,0.2)' : 'rgba(184,64,64,0.2)',
+                display: 'flex', alignItems: 'center', gap: 2,
+                padding: '1px 5px',
+                borderRadius: 2,
+                background: item.ok ? '#2A7D6F' : '#B84040',
               }}>
                 {item.ok
-                  ? <CheckCircle size={9} style={{ color: '#1D5B50' }} />
-                  : <XCircle size={9} style={{ color: 'var(--status-fail)' }} />
+                  ? <CheckCircle size={7} style={{ color: '#fff' }} />
+                  : <XCircle size={7} style={{ color: '#fff' }} />
                 }
-                <span style={{ fontSize: '0.65rem', fontWeight: 700, color: item.ok ? '#1D5B50' : 'var(--status-fail)' }}>
+                <span style={{ fontSize: '0.5rem', fontWeight: 700, color: '#fff' }}>
                   {item.key}
                 </span>
               </div>
             ))}
             {bmoc?.valueShift !== undefined && (
               <div style={{
-                padding: '2px 7px', borderRadius: 4, fontSize: '0.65rem', fontWeight: 600,
-                background: bmoc.valueShift ? 'var(--status-pass-bg)' : 'var(--status-warn-bg)',
-                color: bmoc.valueShift ? '#1D5B50' : '#8A6E1F',
-                border: '1px solid', borderColor: bmoc.valueShift ? 'rgba(42,125,111,0.2)' : 'rgba(192,154,48,0.2)'
+                padding: '1px 5px', borderRadius: 2, fontSize: '0.5rem', fontWeight: 600,
+                background: bmoc.valueShift ? '#2A7D6F' : '#C09A30',
+                color: '#fff',
               }}>
-                {bmoc.valueShift ? '↕ Value shift' : '↔ No shift'}
+                {bmoc.valueShift ? '↕ Shift' : '↔ No shift'}
               </div>
             )}
           </div>
 
           {/* Warning note */}
           {bmoc?.notes && (
-            <div style={{ marginTop: 8, fontSize: '0.75rem', color: 'var(--accent-warm)', display: 'flex', gap: 5, alignItems: 'flex-start' }}>
-              <AlertTriangle size={11} style={{ flexShrink: 0, marginTop: 1 }} />
+            <div style={{ marginTop: 4, fontSize: '0.6rem', color: '#B85C2C', display: 'flex', gap: 4, alignItems: 'flex-start' }}>
+              <AlertTriangle size={9} style={{ flexShrink: 0, marginTop: 1 }} />
               {bmoc.notes}
             </div>
           )}

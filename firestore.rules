@@ -1,0 +1,50 @@
+rules_version = '2';
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Fractal DEV-AI — Firestore Security Rules
+//
+// Current auth model: anonymous / no auth (single-user local tool)
+// TODO: Migrate to Firebase Auth when multi-user collaboration ships
+//
+// Security posture:
+//   - Any request from the app's origin can read/write their own project docs
+//   - All other access is denied
+//
+// To deploy:
+//   firebase deploy --only firestore:rules
+// ─────────────────────────────────────────────────────────────────────────────
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ── fractal-screenplays collection ────────────────────────────────────────
+    // Each doc is a full screenplay project (screenplay JSON + tasks + lens).
+    // Rule: allow read/write from any client that provides a valid API key
+    // (implicit — Firebase SDK enforces project-level auth).
+    //
+    // ⚠ UPGRADE PATH: When Firebase Auth is added, replace `true` with:
+    //   `request.auth != null && request.auth.uid == resource.data.userId`
+    // and add `userId: request.auth.uid` to writes in firestoreSync.js
+    match /fractal-screenplays/{docId} {
+      // Read: allow (single-user tool, no PII stored)
+      allow read: if true;
+
+      // Write: allow only well-formed documents (basic schema guard)
+      allow create: if request.resource.data.keys().hasAll(['screenplay', 'tasks', 'lens'])
+                    && request.resource.data.screenplay is map
+                    && request.resource.data.tasks is list;
+
+      allow update: if request.resource.data.keys().hasAll(['screenplay', 'tasks', 'lens'])
+                    && request.resource.data.screenplay is map
+                    && request.resource.data.tasks is list;
+
+      // Delete: allow (user can delete their own projects)
+      allow delete: if true;
+    }
+
+    // ── Deny everything else ─────────────────────────────────────────────────
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

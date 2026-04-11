@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import { saveScreenplayDebounced, loadScreenplay, deleteScreenplay as deleteFromFirestore } from '../services/firestoreSync'
+import { loadScreenplay, deleteScreenplay as deleteFromFirestore } from '../services/firestoreSync'
 
 // === Demo Screenplay Factory ===
 function createDemoScreenplay() {

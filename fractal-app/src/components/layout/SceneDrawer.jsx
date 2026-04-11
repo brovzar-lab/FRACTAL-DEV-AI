@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, useCallback } from 'react'
+// eslint-disable-next-line no-unused-vars
 import { AnimatePresence, motion } from 'framer-motion'
 import { X, Save, Copy, Check, ChevronRight, ChevronLeft } from 'lucide-react'
 import { useEditor, EditorContent } from '@tiptap/react'
@@ -44,13 +45,14 @@ export default function SceneDrawer() {
     screenplay, sceneDrawerOpen, sceneDrawerId, sceneDrawerDirection,
     closeSceneDrawer, updateSceneText, setSceneStatus,
     lens, cacheAnalysis, analysisCache, startEditSession, endEditSession,
-    setPanelTab, addTask
+    addTask
   } = useScreenplayStore()
 
   const [analysis, setAnalysis] = useState(null)
   const [loading, setLoading] = useState(false)
   const [saved, setSaved] = useState(true)
   const [copied, setCopied] = useState(false)
+  const [analysisError, setAnalysisError] = useState(null)
 
   // Find the scene
   const scene = useMemo(() => {
@@ -76,12 +78,12 @@ export default function SceneDrawer() {
     onUpdate: () => setSaved(false),
   })
 
-  // Reset editor when scene changes
+  // Reset editor when scene changes — defer setSaved to avoid setState-in-effect
   useEffect(() => {
     if (editor && scene) {
       if (scene.text !== editor.getText()) {
         editor.commands.setContent(scene.text || '')
-        setSaved(true)
+        setTimeout(() => setSaved(true), 0)
       }
     }
   }, [scene?.id])
@@ -98,16 +100,30 @@ export default function SceneDrawer() {
     }
   }, [sceneDrawerOpen, sceneDrawerId])
 
+  // Read from cache before the effect to avoid calling setState synchronously inside useEffect
+  const cachedDrawerAnalysis = cacheKey ? analysisCache[cacheKey] ?? null : null
+
   // Load analysis
   useEffect(() => {
-    if (!scene || !cacheKey) return
-    if (analysisCache[cacheKey]) { setAnalysis(analysisCache[cacheKey]); return }
+    if (!scene || !cacheKey || cachedDrawerAnalysis) return
+    const controller = new AbortController()
     setLoading(true)
+    setAnalysisError(null)
     analyzeScene(scene, lens)
-      .then(r => { setAnalysis(r); cacheAnalysis(cacheKey, r) })
-      .catch(console.error)
-      .finally(() => setLoading(false))
+      .then(r => {
+        if (controller.signal.aborted) return
+        setAnalysis(r); cacheAnalysis(cacheKey, r)
+      })
+      .catch(err => {
+        if (controller.signal.aborted) return
+        console.error('[SceneDrawer] Analysis failed:', err)
+        setAnalysisError(err.message || 'Analysis failed.')
+      })
+      .finally(() => { if (!controller.signal.aborted) setLoading(false) })
+    return () => controller.abort()
   }, [cacheKey])
+
+  const drawerAnalysis = cachedDrawerAnalysis ?? analysis
 
   const handleSave = useCallback(() => {
     if (!editor || !scene) return
@@ -189,6 +205,9 @@ export default function SceneDrawer() {
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
             onClick={closeSceneDrawer}
+            aria-label="Close scene drawer"
+            role="button"
+            tabIndex={-1}
             style={{
               position: 'fixed', inset: 0, zIndex: 140,
               background: 'rgba(0,0,0,0.25)',
@@ -203,30 +222,40 @@ export default function SceneDrawer() {
             exit={variants.exit}
             transition={{ type: 'spring', damping: 26, stiffness: 280 }}
             style={drawerStyle}
+            role="dialog"
+            aria-modal="true"
+            aria-label={`Scene details: ${scene.heading}`}
           >
             {/* Header */}
             <div style={{
               padding: '10px 16px',
               borderBottom: '1px solid var(--border-default)',
-              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              display: 'flex', flexDirection: 'column', gap: 6,
               flexShrink: 0, background: 'var(--bg-surface-2)',
             }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1, overflow: 'hidden' }}>
-                <div className="zoom-badge zoom-badge-3">Scene</div>
+              {/* Row 1: Scene badge + heading + close button */}
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+                <div className="zoom-badge zoom-badge-3" style={{ flexShrink: 0, marginTop: 2 }}>Scene</div>
                 <h3 style={{
                   fontFamily: 'var(--font-screenplay)', fontSize: '0.8rem', fontWeight: 700,
-                  overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1,
+                  flex: 1, lineHeight: 1.3, margin: 0, wordBreak: 'break-word',
                 }}>
                   {scene.heading}
                 </h3>
-                <DiagBadge status={scene.diagnostics?.status} />
+                <button className="btn btn-ghost btn-sm" onClick={closeSceneDrawer} aria-label="Close scene drawer" style={{ padding: '4px 6px', flexShrink: 0 }}>
+                  <X size={14} />
+                </button>
               </div>
 
-              <div style={{ display: 'flex', gap: 4, alignItems: 'center', flexShrink: 0 }}>
+              {/* Row 2: Health + Status + BMOC + Copy + Save */}
+              <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+                <DiagBadge status={scene.diagnostics?.status} />
+
                 {/* Workflow status selector */}
                 <select
                   value={scene.workflowStatus || 'untouched'}
                   onChange={(e) => setSceneStatus(scene.id, e.target.value)}
+                  aria-label="Scene workflow status"
                   style={{
                     padding: '3px 6px', fontSize: '0.65rem', fontWeight: 600,
                     borderRadius: 4, border: '1px solid var(--border-default)',
@@ -240,9 +269,9 @@ export default function SceneDrawer() {
                 </select>
 
                 {/* BMOC quick indicators */}
-                <div style={{ display: 'flex', gap: 2 }}>
+                <div style={{ display: 'flex', gap: 2 }} role="group" aria-label="BMOC structure indicators">
                   {bmocItems.map(item => (
-                    <div key={item.key} style={{
+                    <div key={item.key} title={`${item.label}: ${item.ok === undefined ? 'Unknown' : item.ok ? 'Present' : 'Missing'}`} aria-label={`${item.label} ${item.ok ? 'present' : 'missing'}`} style={{
                       width: 18, height: 18, borderRadius: 3,
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
                       background: item.ok === undefined ? 'var(--bg-surface-2)' : item.ok ? 'var(--status-pass-bg)' : 'var(--status-fail-bg)',
@@ -256,8 +285,10 @@ export default function SceneDrawer() {
                   ))}
                 </div>
 
+                <div style={{ flex: 1 }} />
+
                 {/* Copy */}
-                <button className="btn btn-ghost btn-sm" onClick={handleCopy} title="Copy scene" style={{ padding: '4px 6px' }}>
+                <button className="btn btn-ghost btn-sm" onClick={handleCopy} title="Copy scene as Fountain" aria-label="Copy scene to clipboard" style={{ padding: '4px 6px' }}>
                   {copied ? <Check size={12} style={{ color: 'var(--status-pass)' }} /> : <Copy size={12} />}
                 </button>
 
@@ -265,15 +296,11 @@ export default function SceneDrawer() {
                 <button
                   className={`btn btn-sm ${saved ? 'btn-ghost' : 'btn-primary'}`}
                   onClick={handleSave}
+                  aria-label={saved ? 'Scene saved' : 'Save scene changes'}
                   style={{ gap: 3, padding: '4px 8px' }}
                 >
                   <Save size={12} />
                   {saved ? '' : 'Save'}
-                </button>
-
-                {/* Close */}
-                <button className="btn btn-ghost btn-sm" onClick={closeSceneDrawer} style={{ padding: '4px 6px' }}>
-                  <X size={14} />
                 </button>
               </div>
             </div>
@@ -331,15 +358,20 @@ export default function SceneDrawer() {
                   maxHeight: 200, flexShrink: 0,
                 }}>
                   {loading && <AnalysisLoader text="Analyzing…" compact />}
-                  {analysis && !loading && (
-                    <BMOCCard analysis={analysis} onCreateTask={(desc) => {
+                  {analysisError && !loading && (
+                    <div style={{ fontSize: '0.75rem', color: 'var(--status-fail)', padding: '6px 0' }}>
+                      ⚠ {analysisError}
+                    </div>
+                  )}
+                  {drawerAnalysis && !loading && (
+                    <BMOCCard analysis={drawerAnalysis} onCreateTask={(desc) => {
                       addTask({
                         priority: 'P1', status: 'open',
                         level: 'scene', linkedId: scene.id,
                         title: `Fix: ${scene.heading}`,
                         description: desc,
                       })
-                      setPanelTab('tasks')
+                      useScreenplayStore.getState().setPanelTab('tasks')
                     }} />
                   )}
                 </div>

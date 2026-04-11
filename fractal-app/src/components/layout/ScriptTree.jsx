@@ -9,7 +9,7 @@ const STATUS_DOT = {
 }
 
 export default function ScriptTree() {
-  const { screenplay, drillInto, zoom, activeUnitId } = useScreenplayStore()
+  const { screenplay, zoom, activeUnitId } = useScreenplayStore()
   const [expanded, setExpanded] = useState({ acts: {}, sequences: {} })
 
   if (!screenplay) return (
@@ -38,9 +38,9 @@ export default function ScriptTree() {
           style={{ width: '100%', justifyContent: 'space-between' }}
           onClick={() => { useScreenplayStore.getState().drillOut(0) }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
-            <Film size={13} style={{ opacity: 0.7 }} />
-            <span style={{ fontFamily: 'var(--font-editorial)', fontStyle: 'italic', fontSize: '0.8rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 150 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 7, flex: 1, minWidth: 0 }}>
+            <Film size={13} style={{ opacity: 0.7, flexShrink: 0 }} />
+            <span style={{ fontFamily: 'var(--font-editorial)', fontStyle: 'italic', fontSize: '0.8rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {screenplay.title}
             </span>
           </div>
@@ -70,12 +70,12 @@ export default function ScriptTree() {
                 </button>
                 <button
                   className={`sidebar-item ${activeUnitId === act.id ? 'active' : ''}`}
-                  style={{ flex: 1, justifyContent: 'space-between', gap: 4 }}
+                  style={{ flex: 1, justifyContent: 'space-between', gap: 4, minWidth: 0 }}
                   onClick={() => { useScreenplayStore.getState().goToUnit('act', act.id); toggle('acts', act.id) }}
                 >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, flex: 1, minWidth: 0 }}>
                     <div style={{ width: 6, height: 6, borderRadius: '50%', background: STATUS_DOT[act.diagnostics?.status] || '#666', flexShrink: 0 }} />
-                    <span style={{ fontSize: '0.775rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 130 }}>
+                    <span style={{ fontSize: '0.775rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {act.label}
                     </span>
                   </div>
@@ -97,12 +97,15 @@ export default function ScriptTree() {
                       </button>
                       <button
                         className={`sidebar-item ${activeUnitId === seq.id ? 'active' : ''}`}
-                        style={{ flex: 1, gap: 4, fontSize: '0.74rem' }}
+                        style={{ flex: 1, gap: 4, fontSize: '0.74rem', minWidth: 0 }}
                         onClick={() => { useScreenplayStore.getState().goToUnit('sequence', seq.id); toggle('sequences', seq.id) }}
                       >
                         <Layers size={11} style={{ opacity: 0.5, flexShrink: 0 }} />
-                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 120 }}>
+                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, minWidth: 0 }}>
                           {seq.label}
+                        </span>
+                        <span className="sidebar-meta" style={{ marginLeft: 'auto', flexShrink: 0 }}>
+                          {seq.scenes.length}
                         </span>
                       </button>
                     </div>
@@ -112,16 +115,16 @@ export default function ScriptTree() {
                       <div key={sc.id} style={{ marginLeft: 16 }}>
                         <button
                           className={`sidebar-item ${activeUnitId === sc.id ? 'active' : ''}`}
-                          style={{ padding: '4px 8px', fontSize: '0.7rem', gap: 5 }}
+                          style={{ padding: '4px 8px', fontSize: '0.7rem', gap: 5, minWidth: 0 }}
                           onClick={() => useScreenplayStore.getState().goToUnit('scene', sc.id)}
                         >
                           <div style={{ width: 5, height: 5, borderRadius: '50%', background: STATUS_DOT[sc.diagnostics?.status] || '#666', flexShrink: 0 }} />
                           <FileText size={10} style={{ opacity: 0.5, flexShrink: 0 }} />
-                          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 110 }}>
+                          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, minWidth: 0 }}>
                             {sc.heading}
                           </span>
-                          <span className="sidebar-meta" style={{ marginLeft: 'auto' }}>
-                            {sc.pageRange[0]}
+                          <span className="sidebar-meta" style={{ marginLeft: 'auto', flexShrink: 0 }}>
+                            p.{sc.pageRange[0]}–{sc.pageRange[1]}
                           </span>
                         </button>
                       </div>

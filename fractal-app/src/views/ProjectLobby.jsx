@@ -22,17 +22,17 @@ export default function ProjectLobby() {
   const [deleteConfirm, setDeleteConfirm] = useState(null)
   const [search, setSearch] = useState('')
 
-  // Load project list on mount
-  useEffect(() => {
-    loadProjects()
-  }, [])
-
   async function loadProjects() {
     setLoading(true)
     const list = await listScreenplays()
     setProjects(list)
     setLoading(false)
   }
+
+  // Load project list on mount
+  useEffect(() => {
+    loadProjects()
+  }, [])
 
   async function handleDelete(e, projectId) {
     e.stopPropagation()
@@ -89,7 +89,7 @@ export default function ProjectLobby() {
         {/* Project grid */}
         <div className="lobby-grid">
           {/* Upload new card — always first */}
-          <button className="lobby-card lobby-card--new" onClick={() => setShowUpload(true)}>
+          <button className="lobby-card lobby-card--new" onClick={() => setShowUpload(true)} aria-label="Upload a new screenplay">
             <div className="lobby-card__icon lobby-card__icon--new">
               <Plus size={28} strokeWidth={1.5} />
             </div>
@@ -100,7 +100,7 @@ export default function ProjectLobby() {
           </button>
 
           {/* Demo card — always available */}
-          <button className="lobby-card lobby-card--demo" onClick={openDemoProject}>
+          <button className="lobby-card lobby-card--demo" onClick={openDemoProject} aria-label="Open demo project: A Ghost Story">
             <div className="lobby-card__icon lobby-card__icon--demo">
               <Sparkles size={22} strokeWidth={1.5} />
             </div>
@@ -125,9 +125,11 @@ export default function ProjectLobby() {
               key={project.id}
               className="lobby-card lobby-card--clickable"
               onClick={() => !isLoading && openProject(project.id)}
+              onKeyDown={(e) => { if ((e.key === 'Enter' || e.key === ' ') && !isLoading) { e.preventDefault(); openProject(project.id) } }}
               style={{ opacity: isLoading ? 0.6 : 1, cursor: isLoading ? 'not-allowed' : 'pointer' }}
               role="button"
               tabIndex={0}
+              aria-label={`Open project: ${project.title}`}
             >
               <div className="lobby-card__icon">
                 <FileText size={20} strokeWidth={1.5} />
@@ -149,6 +151,7 @@ export default function ProjectLobby() {
                   className={`lobby-card__delete ${deleteConfirm === project.id ? 'lobby-card__delete--confirm' : ''}`}
                   onClick={e => handleDelete(e, project.id)}
                   title={deleteConfirm === project.id ? 'Click again to confirm' : 'Delete project'}
+                  aria-label={deleteConfirm === project.id ? `Confirm delete ${project.title}` : `Delete ${project.title}`}
                 >
                   <Trash2 size={13} />
                   {deleteConfirm === project.id && <span>Confirm?</span>}

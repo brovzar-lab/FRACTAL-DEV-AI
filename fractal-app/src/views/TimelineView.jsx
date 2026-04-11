@@ -14,7 +14,7 @@ const STATUS_COLORS = { pass: '#2A7D6F', warn: '#C09A30', fail: '#B84040' }
 const TENSION_COLORS = ['#2A7D6F', '#6BA368', '#C09A30', '#D97A2C', '#B84040']
 
 export default function TimelineView() {
-  const { screenplay, openSceneDrawer, colorMode, zoom, zoomPath } = useScreenplayStore()
+  const { screenplay, openSceneDrawer, colorMode, zoomPath } = useScreenplayStore()
 
   const { allScenes, totalPages } = useMemo(() => {
     if (!screenplay?.acts) return { allScenes: [], totalPages: 1 }
@@ -50,7 +50,11 @@ export default function TimelineView() {
       </div>
 
       {/* Act bands */}
-      <div style={{ display: 'flex', gap: 2, height: 28, borderRadius: 6, overflow: 'hidden', border: '1px solid var(--border-default)', background: 'var(--bg-surface-2)' }}>
+      <div
+        style={{ display: 'flex', gap: 2, height: 28, borderRadius: 6, overflow: 'hidden', border: '1px solid var(--border-default)', background: 'var(--bg-surface-2)' }}
+        role="list"
+        aria-label="Acts"
+      >
         {screenplay.acts.map((act, ai) => {
           const actColor = ACT_COLORS[ai % ACT_COLORS.length]
           const actWidth = ((act.pageRange[1] - act.pageRange[0]) / totalPages) * 100
@@ -58,6 +62,8 @@ export default function TimelineView() {
           return (
             <div
               key={act.id}
+              role="listitem"
+              aria-label={`${act.label}, pages ${act.pageRange[0]} to ${act.pageRange[1]}`}
               style={{
                 width: `${actWidth}%`,
                 background: actColor.bg,
@@ -75,11 +81,15 @@ export default function TimelineView() {
       </div>
 
       {/* Main timeline — scene bars */}
-      <div style={{
-        display: 'flex', gap: 2, height: 80, borderRadius: 8,
-        overflow: 'hidden', border: '1px solid var(--border-default)',
-        background: 'var(--bg-surface-2)',
-      }}>
+      <div
+        style={{
+          display: 'flex', gap: 2, height: 80, borderRadius: 8,
+          overflow: 'hidden', border: '1px solid var(--border-default)',
+          background: 'var(--bg-surface-2)',
+        }}
+        role="list"
+        aria-label="Scene timeline"
+      >
         {allScenes.map((sc, i) => {
           const width = Math.max(((sc.pageRange[1] - sc.pageRange[0]) / totalPages) * 100, 0.6)
           const actColor = ACT_COLORS[sc.actIndex % ACT_COLORS.length]
@@ -100,8 +110,12 @@ export default function TimelineView() {
           return (
             <div
               key={sc.id}
+              role="button"
+              tabIndex={0}
               title={`${sc.heading}\np.${sc.pageRange[0]}–${sc.pageRange[1]}\n${sc.diagnostics?.status?.toUpperCase() || ''}`}
+              aria-label={`${sc.heading}, pages ${sc.pageRange[0]} to ${sc.pageRange[1]}, status: ${sc.diagnostics?.status || 'unknown'}`}
               onClick={() => openSceneDrawer(sc.id)}
+              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openSceneDrawer(sc.id) } }}
               style={{
                 flex: width,
                 background: bgColor,
