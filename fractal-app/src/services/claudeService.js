@@ -708,7 +708,10 @@ async function callClaude(prompt, maxTokens = 1500, rawText = false, timeout = 3
       signal: controller.signal,
       body: JSON.stringify({ message: prompt, model: 'claude-sonnet-4-20250514', max_tokens: maxTokens })
     })
-    if (!response.ok) throw new Error(`Claude API error: ${response.status}`)
+    if (!response.ok) {
+      const errBody = await response.text().catch(() => '')
+      throw new Error(`Claude API error: ${response.status}${errBody ? ` — ${errBody.slice(0, 200)}` : ''}`)
+    }
     const data = await response.json()
     if (rawText) return data.content
     return JSON.parse(data.content.replace(/```json\n?|\n?```/g, '').trim())

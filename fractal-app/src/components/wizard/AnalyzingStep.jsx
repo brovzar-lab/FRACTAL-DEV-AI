@@ -76,17 +76,31 @@ export default function AnalyzingStep() {
 
   // Error state
   if (error) {
+    let friendlyError = error
+    if (error.includes('Failed to fetch')) friendlyError = 'Could not reach the AI server. Check your internet connection or try again later.'
+    if (error.includes('usage limits') || error.includes('rate limit')) friendlyError = 'AI API usage limit reached. Try again later or skip for now.'
+    if (error.includes('timed out')) friendlyError = 'The analysis request timed out. The script may be too long, or the server is busy.'
+
     return (
       <div style={{ textAlign: 'center' }}>
-        <p style={{ fontFamily: 'var(--font-ui)', color: 'var(--status-fail)', marginBottom: '16px' }}>
-          {error}
+        <p style={{ fontFamily: 'var(--font-ui)', color: 'var(--status-fail)', marginBottom: '16px', fontSize: '0.875rem' }}>
+          {friendlyError}
         </p>
-        <button
-          className="btn btn-secondary"
-          onClick={() => { setError(null); setPhase(0); setDone(false); setRetryCount(c => c + 1) }}
-        >
-          Try again
-        </button>
+        <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
+          <button
+            className="btn btn-secondary"
+            onClick={() => { setError(null); setPhase(0); setDone(false); setRetryCount(c => c + 1) }}
+          >
+            Try again
+          </button>
+          <button
+            className="btn btn-ghost"
+            onClick={() => setWizardStep(4)}
+            style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}
+          >
+            Skip for now
+          </button>
+        </div>
       </div>
     )
   }

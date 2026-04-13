@@ -49,10 +49,10 @@ export default function OutlineView() {
                 cursor: 'pointer',
                 transition: 'background 0.15s',
                 borderLeft: `3px solid ${actColor}`,
-                background: actExpanded ? 'var(--bg-surface-2)' : 'transparent',
+                background: `${actColor}14`,
               }}
-              onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-surface-2)'}
-              onMouseLeave={e => { if (!actExpanded) e.currentTarget.style.background = 'transparent' }}
+              onMouseEnter={e => e.currentTarget.style.background = `${actColor}22`}
+              onMouseLeave={e => e.currentTarget.style.background = `${actColor}14`}
             >
               <span style={{ color: 'var(--text-muted)', flexShrink: 0, width: 16, display: 'flex', alignItems: 'center' }}>
                 {actExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
@@ -77,11 +77,13 @@ export default function OutlineView() {
                       display: 'flex', gap: 8, alignItems: 'center',
                       padding: '6px 10px',
                       borderRadius: 'var(--radius-sm)',
+                      borderLeft: `2px solid ${actColor}60`,
                       cursor: 'pointer',
                       transition: 'background 0.15s',
+                      background: seqExpanded ? `${actColor}0a` : 'transparent',
                     }}
-                    onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-surface-2)'}
-                    onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                    onMouseEnter={e => e.currentTarget.style.background = `${actColor}14`}
+                    onMouseLeave={e => e.currentTarget.style.background = seqExpanded ? `${actColor}0a` : 'transparent'}
                   >
                     <span style={{ color: 'var(--text-muted)', flexShrink: 0, width: 16, display: 'flex', alignItems: 'center' }}>
                       {seqExpanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />}

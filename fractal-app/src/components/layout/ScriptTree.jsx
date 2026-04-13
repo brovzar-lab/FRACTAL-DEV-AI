@@ -57,7 +57,7 @@ export default function ScriptTree() {
         </div>
 
         {screenplay.acts.map((act, ai) => {
-          const isActOpen = expanded.acts[act.id] ?? (ai === 0)
+          const isActOpen = expanded.acts[act.id] ?? true
           return (
             <div key={act.id}>
               {/* Act row */}
@@ -85,7 +85,7 @@ export default function ScriptTree() {
 
               {/* Sequences */}
               {isActOpen && act.sequences.map(seq => {
-                const isSeqOpen = expanded.sequences[seq.id]
+                const isSeqOpen = expanded.sequences[seq.id] ?? true
                 return (
                   <div key={seq.id} style={{ marginLeft: 18 }}>
                     <div style={{ display: 'flex', alignItems: 'center', padding: '0 6px' }}>

@@ -244,9 +244,56 @@ h3 { font-size: 1.05rem; }
   border-bottom: 1px solid var(--border-default);
   display: flex;
   align-items: center;
-  padding: 0 16px;
-  gap: 0;
+  padding: 0 24px;
+  gap: 24px;
   flex-shrink: 0;
+}
+
+.zoom-level-label {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  letter-spacing: 1.5px;
+  flex-shrink: 0;
+}
+
+.zoom-path {
+  display: flex;
+  align-items: center;
+}
+
+.zoom-node {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px;
+  border-radius: 6px;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--text-muted);
+  cursor: pointer;
+  background: transparent;
+  border: none;
+  font-family: inherit;
+  transition: all var(--transition-fast);
+}
+
+.zoom-node:hover {
+  color: var(--text-primary);
+  background: var(--bg-hover);
+}
+
+.zoom-node.active {
+  background: #e4ebf5;
+  color: #1a4d8f;
+  font-weight: 600;
+}
+
+.zoom-connector {
+  color: var(--border-default);
+  display: flex;
+  align-items: center;
+  margin: 0 4px;
 }
 
 /* === Cards — Notecard Aesthetic === */

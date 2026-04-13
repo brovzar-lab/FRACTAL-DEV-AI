@@ -1,4 +1,4 @@
-import { PanelLeftOpen, PanelLeftClose, Moon, Sun, Upload, ArrowLeft, LayoutGrid, Clock, List, Layers, PanelRight, PanelBottom, PanelLeft, RefreshCw, BarChart2 } from 'lucide-react'
+import { PanelLeftOpen, PanelLeftClose, Moon, Sun, Upload, ArrowLeft, LayoutGrid, Clock, List, Layers, PanelRight, PanelBottom, PanelLeft, RefreshCw, BarChart2, Settings } from 'lucide-react'
 import useScreenplayStore from '../../store/screenplayStore'
 import UploadModal from '../upload/UploadModal'
 import { useState } from 'react'
@@ -22,6 +22,7 @@ export default function Header() {
   const [showUpload, setShowUpload] = useState(false)
   const [showReplace, setShowReplace] = useState(false)
   const [showDrawerPicker, setShowDrawerPicker] = useState(false)
+  const [showSettings, setShowSettings] = useState(false)
 
   return (
     <>
@@ -129,22 +130,6 @@ export default function Header() {
 
         {/* Right: controls */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          {/* Replace Script — only when inside a project */}
-          {screenplay && (
-            <button
-              className="btn btn-sm btn-ghost"
-              onClick={() => setShowReplace(true)}
-              title="Re-upload a new file to replace this screenplay"
-              style={{
-                color: 'rgba(232,229,222,0.6)',
-                gap: 5
-              }}
-            >
-              <RefreshCw size={13} />
-              Replace Script
-            </button>
-          )}
-
           {/* Upload / New Script */}
           <button
             className="btn btn-sm"
@@ -213,6 +198,98 @@ export default function Header() {
               )}
             </div>
           )}
+
+          {/* Settings */}
+          <div style={{ position: 'relative' }}>
+            <button
+              className="btn btn-ghost btn-icon"
+              onClick={() => setShowSettings(!showSettings)}
+              title="Settings"
+              style={{ color: 'rgba(232,229,222,0.6)' }}
+            >
+              <Settings size={15} />
+            </button>
+            {showSettings && (
+              <div style={{
+                position: 'absolute', top: '100%', right: 0, marginTop: 4,
+                background: 'var(--bg-surface)', border: '1px solid var(--border-default)',
+                borderRadius: 'var(--radius-lg)', boxShadow: 'var(--shadow-raised)',
+                padding: 16, zIndex: 200, width: 260,
+              }}>
+                <div style={{ fontSize: '0.7rem', fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 12 }}>
+                  Settings
+                </div>
+
+                {/* Theme */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid var(--border-default)' }}>
+                  <span style={{ fontSize: '0.8rem' }}>Theme</span>
+                  <button onClick={toggleTheme} className="btn btn-sm btn-ghost" style={{ gap: 5, fontSize: '0.75rem' }}>
+                    {theme === 'dark' ? <Sun size={13} /> : <Moon size={13} />}
+                    {theme === 'dark' ? 'Light' : 'Dark'}
+                  </button>
+                </div>
+
+                {/* Scene panel direction */}
+                {screenplay && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid var(--border-default)' }}>
+                    <span style={{ fontSize: '0.8rem' }}>Scene panel</span>
+                    <div style={{ display: 'flex', gap: 2 }}>
+                      {DRAWER_OPTIONS.map(d => {
+                        const DIcon = d.icon
+                        return (
+                          <button
+                            key={d.id}
+                            className="btn btn-ghost btn-sm"
+                            onClick={() => setSceneDrawerDirection(d.id)}
+                            title={d.label}
+                            style={{
+                              padding: '4px 6px',
+                              background: sceneDrawerDirection === d.id ? 'var(--accent-primary)' : 'transparent',
+                              color: sceneDrawerDirection === d.id ? '#fff' : 'var(--text-secondary)',
+                            }}
+                          >
+                            <DIcon size={13} />
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* Default view */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid var(--border-default)' }}>
+                  <span style={{ fontSize: '0.8rem' }}>Default view</span>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{viewType}</span>
+                </div>
+
+                {/* Auto-analyze */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid var(--border-default)' }}>
+                  <span style={{ fontSize: '0.8rem' }}>Auto-analyze</span>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>On</span>
+                </div>
+
+                {/* Replace Script */}
+                {screenplay && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid var(--border-default)' }}>
+                    <span style={{ fontSize: '0.8rem' }}>Replace Script</span>
+                    <button
+                      onClick={() => { setShowReplace(true); setShowSettings(false) }}
+                      className="btn btn-sm btn-ghost"
+                      style={{ gap: 5, fontSize: '0.75rem' }}
+                    >
+                      <RefreshCw size={13} /> Upload
+                    </button>
+                  </div>
+                )}
+
+                {/* API status */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0' }}>
+                  <span style={{ fontSize: '0.8rem' }}>AI Engine</span>
+                  <span style={{ fontSize: '0.7rem', color: '#2A7D6F', fontWeight: 500 }}>Claude Sonnet</span>
+                </div>
+              </div>
+            )}
+          </div>
 
           {/* Theme toggle */}
           <button
